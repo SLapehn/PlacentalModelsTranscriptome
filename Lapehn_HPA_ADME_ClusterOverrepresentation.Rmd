@@ -1,0 +1,105 @@
+---
+title: "HPA_ADME_ClusterOverrepresentation"
+author: "Samantha Lapehn"
+date: "2023-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## HPA and ADME Gene Cluster Overrepresentation Analysis
+
+Performing a Fisher's Exact Test to evaluate if HPA or ADME genes are overrepresented in any of the clusters.
+
+### Load Packages
+```{r load packages}
+library(tidyverse)
+```
+
+### Load Data
+-ADME Cluster Membership
+-HPA Cluster Membership
+-Cluster Gene Membership
+```{r load data}
+HPA_ClusterMembership <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/HPACluster_Combined_112023.csv")
+ADME_ClusterMembership <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/ADMEClusterMembership_Combined_112023.csv")
+Gene_ClusterMembership <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/GeneClusterMembership_111723.csv")
+```
+
+### Make List of Cluster Gene Membership
+```{r Gene Cluster Membership List}
+Gene_ClusterMembership$Clusters <- as.factor(Gene_ClusterMembership$Clusters)
+GeneClusterMembership_List <- Gene_ClusterMembership %>%
+     group_split(Clusters, keep = FALSE) %>% 
+     map(~ .x %>%
+             pull(X))
+```
+
+### Make Vector of Background Gene List
+Background gene list will be all genes used to generate the clusters
+```{r background vector}
+Background <- Gene_ClusterMembership$X
+```
+
+### Make Vectors for Enrichment Test
+Creating vectors identifying the overlap of the full human gene list with: 
+1) each cluster
+2) each category (HPA/ADME)
+```{r prepare vector input}
+#Make Vectors for each cluster
+cluster_vec<-lapply(GeneClusterMembership_List, FUN=function(dat) {Background %in% dat})
+names(cluster_vec) <- c("Cluster0", "Cluster1", "Cluster2", "Cluster3", "Cluster4", "Cluster5", "Cluster6", "Cluster7", "Cluster8", "Cluster9", "Cluster10", "Cluster11", "Cluster12", "Cluster13", "Cluster14", "Cluster15", "Cluster16", "Cluster17", "Cluster18", "Cluster19", "Cluster20", "Cluster21", "Cluster22", "Cluster23", "Cluster24", "Cluster25", "Cluster26", "Cluster27", "Cluster28", "Cluster29", "Cluster30", "Cluster31", "Cluster32", "Cluster33", "Cluster34", "Cluster35", "Cluster36", "Cluster37", "Cluster38", "Cluster39", "Cluster40", "Cluster41", "Cluster42", "Cluster43", "Cluster44", "Cluster45", "Cluster46", "Cluster47", "Cluster48", "Cluster49", "Cluster50", "Cluster51", "Cluster52")
+cluster_vec_df <- data.frame(cluster_vec)
+
+#Make cluster dataframe for only clusters with HPA or ADME Genes
+HPAClusters <- c("Cluster0", "Cluster1", "Cluster2", "Cluster4", "Cluster5", "Cluster6", "Cluster9", "Cluster11", "Cluster12", "Cluster13", "Cluster15", "Cluster16", "Cluster18","Cluster20","Cluster23", "Cluster24", "Cluster25", "Cluster26", "Cluster27", "Cluster28", "Cluster30", "Cluster32", "Cluster33", "Cluster39", "Cluster47","Cluster51", "Cluster52")
+
+HPA_Cluster_vec_df <- cluster_vec_df[, HPAClusters]
+
+ADMEClusters <- c("Cluster0", "Cluster1", "Cluster2", "Cluster3", "Cluster4", "Cluster5", "Cluster6", "Cluster7", "Cluster8", "Cluster9", "Cluster10", "Cluster11", "Cluster12", "Cluster13", "Cluster14",  "Cluster15", "Cluster16", "Cluster17", "Cluster18", "Cluster19", "Cluster20", "Cluster21", "Cluster22", "Cluster24",  "Cluster26", "Cluster27", "Cluster28", "Cluster30", "Cluster31", "Cluster32", "Cluster33", "Cluster36", "Cluster38", "Cluster41", "Cluster42", "Cluster43", "Cluster44", "Cluster47", "Cluster50", "Cluster51", "Cluster52")
+
+ADME_Cluster_vec_df <- cluster_vec_df[, ADMEClusters]
+
+#Make Vectors for each HPA and ADME containing Cluster
+HPA_Full <- HPA_ClusterMembership$Gene
+HPA_Full_Vec <- Background %in% HPA_Full
+
+ADME_Full <- ADME_ClusterMembership$Gene
+ADME_Full_Vec <- Background %in% ADME_Full
+
+```
+
+### Run Fishers Exact for HPA Genes
+```{r fishers HPA}
+fishersexact_HPA <- function(x) {fisher.test(x, HPA_Full_Vec, alternative="greater")}
+fishersexact_HPA_pval <- function(x) {fisher.test(x, HPA_Full_Vec, alternative="greater")$p.value}
+
+apply(HPA_Cluster_vec_df, MARGIN=2,FUN=fishersexact_HPA)
+HPA_fishers_pval <-apply(HPA_Cluster_vec_df, MARGIN=2, FUN=fishersexact_HPA_pval)
+HPA_fishers_pval_df <- data.frame(HPA_fishers_pval)
+```
+
+### Run Fishers Exact for ADME Genes
+```{r fishers ADME}
+fishersexact_ADME <- function(x) {fisher.test(x, ADME_Full_Vec, alternative="greater")}
+fishersexact_ADME_pval <- function(x) {fisher.test(x, ADME_Full_Vec, alternative="greater")$p.value}
+
+apply(ADME_Cluster_vec_df, MARGIN=2,FUN=fishersexact_ADME)
+ADME_fishers_pval <-apply(ADME_Cluster_vec_df, MARGIN=2, FUN=fishersexact_ADME_pval)
+ADME_fishers_pval_df <- data.frame(ADME_fishers_pval)
+```
+### Join ADME and HPA Results
+```{r join}
+ADME_fishers_pval_df$Cluster <- rownames(ADME_fishers_pval_df)
+HPA_fishers_pval_df$Cluster <- rownames(HPA_fishers_pval_df)
+
+ADME_HPA_pval_summary <- full_join(ADME_fishers_pval_df, HPA_fishers_pval_df)
+```
+
+### Save Results
+```{r save}
+write.csv(ADME_HPA_pval_summary, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/HPA_ADME_FishersExactSummary_121523.csv")
+```
+

@@ -1,0 +1,113 @@
+---
+title: "Low Expression Gene Filtering (average logcpm<0)"
+author: "Samantha Lapehn"
+date: "2023-11-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Low Expression Gene Filtering
+Performing  filtering to remove non-protein coding genes and low expressing genes (average logcpm<0)
+
+### Load Packages
+```{r load packages}
+library(tidyverse)
+library(edgeR)
+```
+
+### Load Data
+```{r load data}
+#Full Merged Data
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_111723.Rdata")
+```
+
+### Remove duplicates
+```{r Remove duplicates}
+
+sum(duplicated(FullMerge_NewIDs_Annotated$ensembl_gene_id))
+sum(duplicated(FullMerge_NewIDs_Annotated$hgnc_symbol))
+FullMerge_Unique <- FullMerge_NewIDs_Annotated %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all = TRUE) 
+
+sum(duplicated(FullMerge_Unique$ensembl_gene_id))
+sum(duplicated(FullMerge_Unique$hgnc_symbol))
+```
+### Prepare DGE List
+```{r filter by expression}
+#Step 1: Remove unneeded columns
+delete_columns <- c("ensembl_gene_id")
+Annotation<-FullMerge_Unique %>%
+  dplyr::select("hgnc_symbol", "ensembl_gene_id")
+Matrix_Prep <- FullMerge_Unique %>%
+  dplyr::select(-one_of(delete_columns))
+#Step 2: Make Gene Names the Row Names
+rownames(Matrix_Prep) <- Matrix_Prep$hgnc_symbol
+Matrix_Prep <- Matrix_Prep[,-1]
+#Step 3: Transform NA into 0
+Matrix_Prep[is.na(Matrix_Prep)] = 0
+#Step 4: Make into a Matrix
+Expr_Matrix <-as.matrix(Matrix_Prep)
+#Step 4: Transform into DGEList object
+Expr_Matrix_DGE <- DGEList(Expr_Matrix)
+#Step 5: Filter for rowmeans of logcpm>0
+logcpm<-cpm(Expr_Matrix_DGE$counts,log=T)
+keep<-rowMeans(logcpm)>0 
+lost <-rowMeans(logcpm)<0
+Expr_Matrix_Filtered<- Expr_Matrix_DGE[keep, ]
+Removed_Genes <- Expr_Matrix_DGE[lost, ]
+Removed_Genes_logcpm <- logcpm[lost,]
+Filtered_logcpm <- logcpm[keep,]
+
+#Before Filtering
+nrow(Expr_Matrix)
+#After Filtering
+nrow(Expr_Matrix_Filtered)
+
+#Step 6: Plot before and after filtering
+cpm1<-cpm(Expr_Matrix_DGE$counts,log=T)
+plot(density(cpm1),main="Before Filtering")#,xlim=c(-10,20000))
+abline(v =0, col = "red", lty = 2)
+
+cpm2<-cpm(Expr_Matrix_Filtered$counts,log=T)
+plot(density(cpm2),main="After Filtering 1")#,xlim=c(-10,20000))
+abline(v =0, col = "red", lty = 2)
+```
+
+### Save filtered data for next steps
+```{r save filtered data}
+Filtered_Counts_DF <- data.frame(Expr_Matrix_Filtered$counts)
+Filtered_Counts_DF$hgnc_symbol <- rownames(Filtered_Counts_DF)
+FilteredCounts_DF_Annotated <- inner_join(Annotation, Filtered_Counts_DF, by=("hgnc_symbol"))
+Filtered_Counts_DF <- Filtered_Counts_DF[,-1223]
+
+Filtered_logcpm_DF <- data.frame(Filtered_logcpm)
+Filtered_logcpm_DF$hgnc_symbol <- rownames(Filtered_logcpm_DF)
+Filtered_logcpm_DF_Annotated <- inner_join(Annotation, Filtered_logcpm_DF, by=("hgnc_symbol"))
+Filtered_logcpm_DF <- Filtered_logcpm_DF[,-1223]
+
+Removed_Genes_DF<-data.frame(Removed_Genes$counts)
+Removed_Genes_DF$hgnc_symbol <- rownames(Removed_Genes_DF)
+Removed_Genes_DF_Annotated <- inner_join(Annotation, Removed_Genes_DF, by=("hgnc_symbol"))
+
+Removed_Genes_logcpm_DF<-data.frame(Removed_Genes_logcpm)
+Removed_Genes_logcpm_DF$hgnc_symbol <- rownames(Removed_Genes_logcpm_DF)
+Removed_Genes_DF_logcpm_Annotated <- inner_join(Annotation, Removed_Genes_logcpm_DF, by=("hgnc_symbol"))
+
+#save(FilteredCounts_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredwithAnnotation_111723.RData")
+#save(Filtered_Counts_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_111723.RData")
+#save(Filtered_logcpm_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/Filtered_logcpm_withAnnotation_111723.RData")
+#save(Filtered_logcpm_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/Filtered_logcpm_112723.RData")
+#save(Removed_Genes_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/RemovedGenes_counts_111723.RData")
+#save(Removed_Genes_logcpm_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/RemovedGenes_logcpm_111723.RData")
+
+write.csv(Removed_Genes_logcpm_DF, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/RemovedGenes_logcpm_111723.csv")
+```
+
+
+
+
+

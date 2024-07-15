@@ -1,0 +1,1118 @@
+---
+title: "Differential Expression Analysis"
+author: "Samantha Lapehn"
+date: "2023-11-17"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Differential Expression Analysis
+
+Differential Expression analysis with batch correction using RUVr and a significance threshold of FDR<0.01
+
+### Load Packages
+```{r load packages}
+library(tidyverse)
+library(edgeR)
+library(RColorBrewer)
+library(RUVSeq)
+library(umap)
+library(org.Hs.eg.db)
+library(UpSetR)
+library(pheatmap)
+library(rgl)
+```
+
+### Load Data
+Loading data that was filtered using rowMeans(logcpm>0)
+```{r load data}
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_111723.RData")
+Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_Nov2023.csv")
+```
+
+### Prepare Expression Matrix
+```{r Expression Matrix}
+Expr_Matrix <- as.matrix(Filtered_Counts_DF)
+#changing values to integers which is required for RUVr. TXimport values have decimals.
+mode(Expr_Matrix) <- "integer"
+
+logcpm<-cpm(Expr_Matrix, log=TRUE)
+```
+
+### Principal Components Analysis - Before Correction
+Running PCA on Data before any batch correction is performed
+```{r PCA Before}
+PCobj_pre =prcomp(t(logcpm), scale=TRUE)
+PCs_pre = PCobj_pre$x
+PCs_pre =as.data.frame(PCs_pre[,1:10])
+colnames(PCs_pre)<-c("PC1","PC2","PC3","PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")
+rownames(Sample_Metadata) <-Sample_Metadata$NewID
+Metadata_PCs_pre <-merge(Sample_Metadata,PCs_pre,by='row.names')
+
+EVAL_pre<-as.data.frame(matrix(NA,nrow=10,ncol=3))
+colnames(EVAL_pre)<-c("P_Batch","P_CellLine", "P_FetalSex") 
+
+for (i in 1:10){
+  AOV<-aov(PCs_pre[,i]~Batch_ID,data=Metadata_PCs_pre)
+  EVAL_pre[i,1] <-summary(AOV)[[1]][["Pr(>F)"]][1]
+}
+
+for (i in 1:10){
+  AOV<-aov(PCs_pre[,i]~Cell_Line,data=Metadata_PCs_pre)
+  EVAL_pre[i,2] <-summary(AOV)[[1]][["Pr(>F)"]][1]
+}
+
+for (i in 1:10){
+  AOV<-aov(PCs_pre[,i]~FetalSex,data=Metadata_PCs_pre)
+  EVAL_pre[i,3] <-summary(AOV)[[1]][["Pr(>F)"]][1]
+}
+
+EVAL_pre$PropVar = summary(PCobj_pre)$importance["Proportion of Variance", 1:10]
+
+print(EVAL_pre, newpage=F)
+
+ggplot(Metadata_PCs_pre, aes(x=PC1, y=PC2, color=Cell_Line)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC1, y=PC2, color=Batch_ID)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC1, y=PC2, color=Cell_Line_Batch)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC1, y=PC2, color=FetalSex)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC2, y=PC3, color=Cell_Line)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC2, y=PC3, color=Batch_ID)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC2, y=PC3, color=Cell_Line_Batch)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC2, y=PC3, color=FetalSex)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC3, y=PC4, color=Cell_Line)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC3, y=PC4, color=Batch_ID)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC3, y=PC4, color=Cell_Line_Batch)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 before batch correction")
+
+ggplot(Metadata_PCs_pre, aes(x=PC3, y=PC4, color=FetalSex)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 before batch correction")
+EVAL_pre$PC <- as.numeric(rownames(EVAL_pre))
+
+EVAL_pre %>%
+  ggplot(aes(x=PC, y=PropVar, group=1)) +
+  geom_line()+
+  geom_point() +
+  ggtitle("Variance by PC before Batch Correction") + 
+  ylab("Proportion of Variance") +
+  scale_x_continuous(breaks=seq(0,10, by=1))+
+  ylim(0,0.5)
+```
+
+### UMAP Plot before correction
+```{r UMAP}
+umap <- umap(t(logcpm))
+umap_forplot <- data.frame(umap$layout)
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Cell Line")
+
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Batch_ID)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Dataset")
+
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line_Batch)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Cell Line Batch")
+
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$FetalSex)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Fetal Sex")
+
+```
+
+### Run First Pass Model
+```{r First Pass}
+#PreStep: Make design matrix
+CellLine<-factor(Sample_Metadata$Cell_Line,levels=c("PlacentaTissue", "Primary","BeWo", "JEG3", "HTR8SVneo", "JAR", "Explant"))
+design_original <- model.matrix(~CellLine)
+colnames(design_original) <- gsub("CellLine", "", colnames(design_original))
+design_original
+
+#Step 1: Estimate Dispersion: Maximizes the negative binomial likelihood to give the estimate of the common, trended and tagwise dispersions across all tags
+y_final <- DGEList(Expr_Matrix)
+y_final_norm <- calcNormFactors(y_final,method="TMM")
+y_model <- estimateDisp(y_final,design_original)
+plotBCV(y_model)
+
+#Step 2: glmQLFIT: Fitting a linear regression model to the read counts to each gene, condcuting a genewise statistical test
+fit <- glmQLFit(y_model,design_original, robust=TRUE)
+
+#Step 3: Find residuals
+res <-residuals(fit, type="deviance")
+```
+
+## Perform RUVr with residuals
+```{r RUVr}
+## Note from Jim: should probably use k>1. I chose 5
+corrected <- RUVr(Expr_Matrix, isLog=FALSE, residuals=res, k=5)
+design_corrected <- cbind(design_original, corrected$W)
+```
+
+## Perform Voom with RUVr model matrix and corrected counts
+```{r Voom}
+
+v<-voom(corrected$normalizedCounts, design_corrected, plot=TRUE)
+
+```
+
+## Run Differntial Expression model on voom transformed data
+```{r Differential expression}
+#Step 1: Run model
+
+fit <- eBayes(lmFit(v, design_corrected))
+
+#Step 2: Pull all results
+AllResults_Primary<-topTable(fit, coef=2,number=dim(fit)[1],adjust.method="BH") 
+AllResults_BeWo<-topTable(fit, coef=3,number=dim(fit)[1],adjust.method="BH") 
+AllResults_JEG3 <-topTable(fit, coef=4,number=dim(fit)[1],adjust.method="BH") 
+AllResults_HTR8<-topTable(fit, coef=5,number=dim(fit)[1],adjust.method="BH") 
+AllResults_JAR<-topTable(fit, coef=6,number=dim(fit)[1],adjust.method="BH") 
+AllResults_Explant<-topTable(fit, coef=7,number=dim(fit)[1],adjust.method="BH") 
+#Step 3: Pull only significant results (p.adj<0.01)
+Sig_Primary <- AllResults_Primary %>%
+  dplyr::filter(adj.P.Val<0.01)
+Sig_BeWo <- AllResults_BeWo %>%
+  dplyr::filter(adj.P.Val<0.01)
+Sig_JEG3 <- AllResults_JEG3 %>%
+  dplyr::filter(adj.P.Val<0.01)
+Sig_HTR8 <- AllResults_HTR8 %>%
+  dplyr::filter(adj.P.Val<0.01)
+Sig_JAR <- AllResults_JAR %>%
+  dplyr::filter(adj.P.Val<0.01)
+Sig_Explant <- AllResults_Explant %>%
+  dplyr::filter(adj.P.Val<0.01)
+
+#Pull increased/decreased DEGs
+Sig_Primary_Increased <- AllResults_Primary %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_BeWo_Increased <- AllResults_BeWo %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_JEG3_Increased <- AllResults_JEG3 %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_HTR8_Increased <- AllResults_HTR8 %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_JAR_Increased <- AllResults_JAR %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_Explant_Increased <- AllResults_Explant %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+
+
+Sig_Primary_Decreased <- AllResults_Primary %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
+Sig_BeWo_Decreased <- AllResults_BeWo %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
+Sig_JEG3_Decreased <- AllResults_JEG3 %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
+Sig_HTR8_Decreased <- AllResults_HTR8 %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
+Sig_JAR_Decreased <- AllResults_JAR %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
+Sig_Explant_Decreased <- AllResults_Explant %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
+
+
+```
+
+### Plot DEG number
+```{r plot DEGs}
+Cell_Line_forDF <- c("Primary", "Primary", "BeWo", "BeWo", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "JAR", "JAR", "Explant", "Explant")
+Direction_DF <- c("Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased")
+DEG_number<- c(nrow(Sig_Primary_Increased), nrow(Sig_Primary_Decreased), nrow(Sig_BeWo_Increased), nrow(Sig_BeWo_Decreased), nrow(Sig_JEG3_Increased), nrow(Sig_JEG3_Decreased), nrow(Sig_HTR8_Increased), nrow(Sig_HTR8_Decreased), nrow(Sig_JAR_Increased), nrow(Sig_JAR_Decreased), nrow(Sig_Explant_Increased), nrow(Sig_Explant_Decreased))
+
+
+plot_DF <- data.frame("Direction"=Direction_DF, "Placental_Model"=Cell_Line_forDF, "DEGNumber"=DEG_number)
+
+plot_DF %>%
+  ggplot(aes(x=Placental_Model, y=DEGNumber, fill=Direction)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  geom_text(position=position_dodge(1), aes(label=DEGNumber)) + 
+  ylab("Number of DEGs") + 
+  xlab("Placental Model") +
+  ggtitle("Differentially Expressed Genes (FDR<0.01)") + 
+  scale_fill_manual(values=c("#0092B3", "#F09062")) + 
+  ylim(0,9000)
+
+#Plot DEG number without Directionality
+DEG_number_nodirection <- c(nrow(Sig_Primary), nrow(Sig_BeWo), nrow(Sig_JEG3), nrow(Sig_HTR8),nrow(Sig_JAR), nrow(Sig_Explant))
+
+Cell_Line_forDF_nodirection <- c("Primary Trophoblasts", "BeWo", "JEG-3", "HTR-8/SVneo", "JAR", "Villous Explants")
+
+plot_DF_nodirection <- data.frame("Placental_Model"=Cell_Line_forDF_nodirection, "DEGNumber"=DEG_number_nodirection)
+
+plot_DF_nodirection %>%
+  ggplot(aes(x=reorder(Placental_Model,DEGNumber), y=DEGNumber, fill=Cell_Line_forDF_nodirection)) + 
+  geom_bar(position="dodge", stat="identity", show.legend=FALSE) + 
+  geom_text(position=position_dodge(1), vjust=-0.25, aes(label=DEGNumber)) + 
+  ylab("Number of DEGs") + 
+  xlab("Placental Model") +
+  ggtitle("Differentially Expressed Genes (FDR<0.01)") + 
+  scale_fill_manual(values=c("Primary Trophoblasts"="darkorange", "HTR-8/SVneo"="gold", "Villous Explants"="magenta", "JAR"="green", "JEG-3"="purple", "BeWo"="red")) +
+  ylim(0,12000) + 
+  theme_minimal() +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+
+```
+
+
+##Plot DEGs with Volcano Plots
+```{r Volcano}
+MakeVPlot<-function(Results,Title){
+sig<-subset(Results,adj.P.Val<0.01)
+sig<-sig[order(sig$adj.P.Val),]
+sig_top<-sig[1:10,]
+
+sig_up<-subset(sig,logFC>0)
+sig_up_top<-subset(sig_top,logFC>0)
+
+
+sig_down<-subset(sig,logFC<0)
+sig_down_top<-subset(sig_top,logFC<(0))
+
+
+ColorPalette<-brewer.pal(11,"RdBu")
+ColorPalette<-ColorPalette[c(2:4,8:10)]
+
+plot(Results$logFC,-log(Results$P.Value), pch=20,cex=0.35,main=Title,ylab="Negative Log p-value",xlab="Log Fold Change",col="grey60")
+points(sig_up$logFC,-log(sig_up$P.Value),pch=20,cex=0.75,col=ColorPalette[3])
+
+
+points(sig_down$logFC,-log(sig_down$P.Value),pch=20,cex=0.75,col=ColorPalette[4])
+
+}
+MakeVPlot(AllResults_Primary,"DEGs: Primary Trophoblasts")
+MakeVPlot(AllResults_BeWo,"DEGs: BeWo")
+MakeVPlot(AllResults_JEG3,"DEGs: JEG-3")
+MakeVPlot(AllResults_HTR8,"DEGs: HTR-8/SVneo")
+MakeVPlot(AllResults_JAR,"DEGs: JAR")
+MakeVPlot(AllResults_Explant,"DEGs: Villous Explants")
+
+```
+
+### LogFC histograms
+Plotting histograms to see logFC distribution of all data vs. logFC distribution of only significant data to help decide if using a logFC cutoff is appropriate
+```{r logFC histograms}
+hist(AllResults_Primary$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_Primary$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(AllResults_BeWo$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_BeWo$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(AllResults_HTR8$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_HTR8$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(AllResults_JEG3$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_JEG3$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(AllResults_JAR$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_JAR$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(AllResults_Explant$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_Explant$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+```
+
+### Principal Components Analysis - After RUVr
+```{r PCA After}
+Ruvr_logcpm <- removeBatchEffect(logcpm, covariates = corrected$W)
+PCobj_post =prcomp(t(Ruvr_logcpm), scale=TRUE)
+PCs_post = PCobj_post$x
+PCs_post =as.data.frame(PCs_post[,1:10])
+colnames(PCs_post)<-c("PC1","PC2","PC3","PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")
+rownames(Sample_Metadata) <-Sample_Metadata$NewID
+Metadata_PCs_post <-merge(Sample_Metadata,PCs_post,by='row.names')
+
+EVAL_post<-as.data.frame(matrix(NA,nrow=10,ncol=3))
+colnames(EVAL_post)<-c("P_Batch","P_CellLine", "P_FetalSex") 
+
+for (i in 1:10){
+  AOV<-aov(PCs_post[,i]~Batch_ID,data=Metadata_PCs_post)
+  EVAL_post[i,1] <-summary(AOV)[[1]][["Pr(>F)"]][1]
+}
+
+for (i in 1:10){
+  AOV<-aov(PCs_post[,i]~Cell_Line,data=Metadata_PCs_post)
+  EVAL_post[i,2] <-summary(AOV)[[1]][["Pr(>F)"]][1]
+}
+
+for (i in 1:10){
+  AOV<-aov(PCs_post[,i]~FetalSex,data=Metadata_PCs_post)
+  EVAL_post[i,3] <-summary(AOV)[[1]][["Pr(>F)"]][1]
+}
+
+EVAL_post$PropVar = summary(PCobj_post)$importance["Proportion of Variance", 1:10]
+
+print(EVAL_post, newpage=F)
+
+ggplot(Metadata_PCs_post, aes(x=PC1, y=PC2, color=Cell_Line)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC1, y=PC2, color=Batch_ID)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC1, y=PC2, color=Cell_Line_Batch)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC1, y=PC2, color=FetalSex)) +
+  geom_point()+
+  ggtitle("PC1 and PC2 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC2, y=PC3, color=Cell_Line)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC2, y=PC3, color=Batch_ID)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC2, y=PC3, color=Cell_Line_Batch)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC2, y=PC3, color=FetalSex)) +
+  geom_point()+
+  ggtitle("PC2 and PC3 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC3, y=PC4, color=Cell_Line)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC3, y=PC4, color=Batch_ID)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC3, y=PC4, color=Cell_Line_Batch)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 after RUVr")
+
+ggplot(Metadata_PCs_post, aes(x=PC3, y=PC4, color=FetalSex)) +
+  geom_point()+
+  ggtitle("PC3 and PC4 after RUVr")
+
+EVAL_post$PC <- as.numeric(rownames(EVAL_post))
+
+EVAL_post %>%
+  ggplot(aes(x=PC, y=PropVar, group=1)) +
+  geom_line()+
+  geom_point() +
+  ggtitle("Variance by PC after RUVr") + 
+  ylab("Proportion of Variance") +
+  scale_x_continuous(breaks=seq(0,10, by=1))+
+  ylim(0,0.5)
+
+EVAL_post
+```
+
+## 3D PCA Plot (Post Correction)
+```{r 3D PCA Post}
+color = rep(NA, length=length(Metadata_PCs_post$Cell_Line))
+Metadata_PCs_post$Cell_Line <- as.factor(Metadata_PCs_post$Cell_Line)
+summary(Metadata_PCs_post$Cell_Line)
+#Assign colors to cell line
+color[which(Metadata_PCs_post$Cell_Line=="BeWo")] = "red"
+color[which(Metadata_PCs_post$Cell_Line=="PlacentaTissue")] = "blue"
+color[which(Metadata_PCs_post$Cell_Line=="HTR8SVneo")] = "gold"
+color[which(Metadata_PCs_post$Cell_Line=="JAR")] = "green"
+color[which(Metadata_PCs_post$Cell_Line=="JEG3")] = "purple"
+color[which(Metadata_PCs_post$Cell_Line=="Primary")] = "darkorange"
+color[which(Metadata_PCs_post$Cell_Line=="Explant")] = "magenta"
+
+# Plot as 3D PCA
+plot3d(x=(Metadata_PCs_post$PC1), y=(Metadata_PCs_post$PC2), z=(Metadata_PCs_post$PC3), col=color, xlab="PC1", ylab="PC2", zlab="PC3") 
+rglwidget()
+
+```
+
+
+### UMAP Plot after correction
+```{r UMAP after RUVr}
+umap <- umap(t(Ruvr_logcpm))
+umap_forplot <- data.frame(umap$layout)
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Cell Line")
+
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Batch_ID)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Dataset")
+
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line_Batch)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Cell Line Batch")
+
+ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$FetalSex)) +
+  geom_point() + 
+  ggtitle("UMAP colored by Fetal Sex")
+```
+
+## Pull/Plot Non-DEGs (FDR>0.01)
+```{r Non DEGs}
+UnSig_Primary <- AllResults_Primary %>%
+  dplyr::filter(adj.P.Val>0.01)
+UnSig_BeWo <- AllResults_BeWo %>%
+  dplyr::filter(adj.P.Val>0.01)
+UnSig_JEG3 <- AllResults_JEG3 %>%
+  dplyr::filter(adj.P.Val>0.01)
+UnSig_HTR8 <- AllResults_HTR8 %>%
+  dplyr::filter(adj.P.Val>0.01)
+UnSig_JAR <- AllResults_JAR %>%
+  dplyr::filter(adj.P.Val>0.01)
+UnSig_Explant <- AllResults_Explant %>%
+  dplyr::filter(adj.P.Val>0.01)
+
+#Plot
+Cell_Line_forUnSigDF <- c("Primary", "BeWo", "JEG3", "HTR-8/SVneo", "JAR", "Explant")
+
+UnDEG_number<- c(nrow(UnSig_Primary), nrow(UnSig_BeWo), nrow(UnSig_JEG3), nrow(UnSig_HTR8), nrow(UnSig_JAR),  nrow(UnSig_Explant))
+
+
+UnSig_plot_DF <- data.frame( "Placental_Model"=Cell_Line_forUnSigDF, "UnDEGNumber"=UnDEG_number)
+
+UnSig_plot_DF %>%
+  ggplot(aes(x=Placental_Model, y=UnDEGNumber)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  geom_text(position=position_dodge(1), aes(label=UnDEGNumber)) + 
+  ylab("Number of Genes") + 
+  xlab("Placental Model") +
+  ggtitle("UnChanged Genes FDR>0.01") 
+
+```
+
+### HPA Overlap
+Overlapping human protein atlas placenta only, enhanced, and enriched genes with DEGs
+```{r HPA}
+## Load HPA Data
+HPA_PlacentaOnly <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/HPACategories_050223/HPAPlacenta_PlacentaOnly_050223.csv")
+HPA_PlacentaEnriched <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/HPACategories_050223/HPAPlacenta_TissueEnriched_050223.csv")
+HPA_PlacentaEnhanced <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/HPACategories_050223/HPAPlacenta_TissueEnhanced_050223.csv")
+
+## First check overlap with AllResults to see if there are any that didn't pass the filter (Can use any cell line here for the check)
+AllResults_BeWo$hgnc_symbol <- rownames(AllResults_BeWo)
+PlacentaOnly_FilterCheck <- inner_join(HPA_PlacentaOnly, AllResults_BeWo, by=c("Gene" ="hgnc_symbol"))
+Missing_PlacentaOnly <- setdiff(HPA_PlacentaOnly$Gene, AllResults_BeWo$hgnc_symbol)
+#Names of Placenta Only genes that didn't pass the filter
+print(Missing_PlacentaOnly)
+PlacentaEnriched_FilterCheck <- inner_join(HPA_PlacentaEnriched, AllResults_BeWo, by=c("Gene" ="hgnc_symbol"))
+Missing_Enriched <- setdiff(HPA_PlacentaEnriched$Gene, AllResults_BeWo$hgnc_symbol)
+#Names of Placenta Enriched genes that didn't pass the filter
+print(Missing_Enriched)
+PlacentaEnhanced_FilterCheck <- inner_join(HPA_PlacentaEnhanced, AllResults_BeWo, by=c("Gene" ="hgnc_symbol"))
+Missing_Enhanced <- setdiff(HPA_PlacentaEnhanced$Gene, AllResults_BeWo$hgnc_symbol)
+#Names of Placenta Enhanced genes that didn't pass the filter
+print(Missing_Enhanced)
+## Overlap with DEG lists
+Sig_JAR$hgnc_symbol <- rownames(Sig_JAR)
+Sig_JAR_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_JAR, by=c("Gene" ="hgnc_symbol"))
+length(Sig_JAR_PlacentaOnly$Gene)
+Sig_JAR_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_JAR, by=c("Gene" ="hgnc_symbol"))
+length(Sig_JAR_PlacentaEnriched$Gene)
+Sig_JAR_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_JAR, by=c("Gene" ="hgnc_symbol"))
+length(Sig_JAR_PlacentaEnhanced$Gene)
+
+Sig_HTR8$hgnc_symbol <- rownames(Sig_HTR8)
+Sig_HTR8_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_HTR8, by=c("Gene" ="hgnc_symbol"))
+length(Sig_HTR8_PlacentaOnly$Gene)
+Sig_HTR8_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_HTR8, by=c("Gene" ="hgnc_symbol"))
+length(Sig_HTR8_PlacentaEnriched$Gene)
+Sig_HTR8_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_HTR8, by=c("Gene" ="hgnc_symbol"))
+length(Sig_HTR8_PlacentaEnhanced$Gene)
+
+Sig_BeWo$hgnc_symbol <- rownames(Sig_BeWo)
+Sig_BeWo_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_BeWo, by=c("Gene" ="hgnc_symbol"))
+length(Sig_BeWo_PlacentaOnly$Gene)
+Sig_BeWo_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_BeWo, by=c("Gene" ="hgnc_symbol"))
+length(Sig_BeWo_PlacentaEnriched$Gene)
+Sig_BeWo_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_BeWo, by=c("Gene" ="hgnc_symbol"))
+length(Sig_BeWo_PlacentaEnhanced$Gene)
+
+Sig_JEG3$hgnc_symbol <- rownames(Sig_JEG3)
+Sig_JEG3_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_JEG3, by=c("Gene" ="hgnc_symbol"))
+length(Sig_JEG3_PlacentaOnly$Gene)
+Sig_JEG3_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_JEG3, by=c("Gene" ="hgnc_symbol"))
+length(Sig_JEG3_PlacentaEnriched$Gene)
+Sig_JEG3_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_JEG3, by=c("Gene" ="hgnc_symbol"))
+length(Sig_JEG3_PlacentaEnhanced$Gene)
+
+Sig_Primary$hgnc_symbol <- rownames(Sig_Primary)
+Sig_Primary_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_Primary, by=c("Gene" ="hgnc_symbol"))
+length(Sig_Primary_PlacentaOnly$Gene)
+Sig_Primary_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_Primary, by=c("Gene" ="hgnc_symbol"))
+length(Sig_Primary_PlacentaEnriched$Gene)
+Sig_Primary_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_Primary, by=c("Gene" ="hgnc_symbol"))
+length(Sig_Primary_PlacentaEnhanced$Gene)
+
+Sig_Explant$hgnc_symbol <- rownames(Sig_Explant)
+Sig_Explant_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_Explant, by=c("Gene" ="hgnc_symbol"))
+length(Sig_Explant_PlacentaOnly$Gene)
+Sig_Explant_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_Explant, by=c("Gene" ="hgnc_symbol"))
+length(Sig_Explant_PlacentaEnriched$Gene)
+Sig_Explant_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_Explant, by=c("Gene" ="hgnc_symbol"))
+length(Sig_Explant_PlacentaEnhanced$Gene)
+```
+
+## Plot HPA Overlap
+``` {r HPA Plot DEGs}
+Cell_Line_forDF <- c("Primary", "Primary", "Primary", "BeWo", "BeWo", "BeWo", "JEG3", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "HTR-8/SVneo","JAR", "JAR", "JAR", "Explant", "Explant", "Explant")
+HPA_Category <- c("Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced")
+Overlap_number<- c(length(Sig_Primary_PlacentaOnly$Gene), length(Sig_Primary_PlacentaEnriched$Gene), length(Sig_Primary_PlacentaEnhanced$Gene), length(Sig_BeWo_PlacentaOnly$Gene), length(Sig_BeWo_PlacentaEnriched$Gene), length(Sig_BeWo_PlacentaEnhanced$Gene), length(Sig_JEG3_PlacentaOnly$Gene), length(Sig_JEG3_PlacentaEnriched$Gene), length(Sig_JEG3_PlacentaEnhanced$Gene), length(Sig_HTR8_PlacentaOnly$Gene), length(Sig_HTR8_PlacentaEnriched$Gene), length(Sig_HTR8_PlacentaEnhanced$Gene), length(Sig_JAR_PlacentaOnly$Gene), length(Sig_JAR_PlacentaEnriched$Gene), length(Sig_JAR_PlacentaEnhanced$Gene), length(Sig_Explant_PlacentaOnly$Gene), length(Sig_Explant_PlacentaEnriched$Gene), length(Sig_Explant_PlacentaEnhanced$Gene))
+
+HPAplot_DF <- data.frame("HPA_Category"=HPA_Category, "Placental_Model"=Cell_Line_forDF, "Overlap"=Overlap_number)
+
+HPAplot_DF %>%
+  ggplot(aes(x=HPA_Category, y=Overlap, fill=Placental_Model)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  geom_text(position=position_dodge(1), aes(label=Overlap)) + 
+  ylab("Number of Overlapping DEGs") + 
+  xlab("HPA Category") +
+  ggtitle("Placental HPA DEG Overlap")
+
+```
+
+## Make UpsetR plot for Placenta Enhanced and Placenta Enriched HPA genes
+```{r Upset HPA}
+#Step 1: Make Vectors
+Enhanced_Primary<- as.vector(Sig_Primary_PlacentaEnhanced$Gene)
+Enhanced_BeWo<- as.vector(Sig_BeWo_PlacentaEnhanced$Gene)
+Enhanced_HTR8<- as.vector(Sig_HTR8_PlacentaEnhanced$Gene)
+Enhanced_JAR<- as.vector(Sig_JAR_PlacentaEnhanced$Gene)
+Enhanced_JEG3<- as.vector(Sig_JEG3_PlacentaEnhanced$Gene)
+Enhanced_Explant<- as.vector(Sig_Explant_PlacentaEnhanced$Gene)
+
+Enriched_Primary<- as.vector(Sig_Primary_PlacentaEnriched$Gene)
+Enriched_BeWo<- as.vector(Sig_BeWo_PlacentaEnriched$Gene)
+Enriched_HTR8<- as.vector(Sig_HTR8_PlacentaEnriched$Gene)
+Enriched_JAR<- as.vector(Sig_JAR_PlacentaEnriched$Gene)
+Enriched_JEG3<- as.vector(Sig_JEG3_PlacentaEnriched$Gene)
+Enriched_Explant<- as.vector(Sig_Explant_PlacentaEnriched$Gene)
+
+#Step 2: Turn vectors into a list
+Upset_list_sig_Enhanced<-list("Primary"=Enhanced_Primary, "BeWo"=Enhanced_BeWo, "HTR-8/SVneo"=Enhanced_HTR8, "JAR"=Enhanced_JAR, "JEG-3"=Enhanced_JEG3, "Villous Explants"=Enhanced_Explant)
+
+Upset_list_sig_Enriched<-list("Primary"=Enriched_Primary, "BeWo"=Enriched_BeWo, "HTR-8/SVneo"=Enriched_HTR8, "JAR"=Enriched_JAR, "JEG-3"=Enriched_JEG3, "Villous Explants"=Enriched_Explant)
+
+#Step 3: Plot
+upset_plot_Enhanced_Sig <- upset(fromList(Upset_list_sig_Enhanced), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enhanced_Sig
+
+upset_plot_Enriched_Sig <- upset(fromList(Upset_list_sig_Enriched), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enriched_Sig
+
+```
+
+
+## Overlap HPA with unchanged genes (FDR>0.01)
+``` {r HPA Plot unchanged}
+UnSig_JAR$hgnc_symbol <- rownames(UnSig_JAR)
+UnSig_JAR_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_JAR, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_JAR_PlacentaOnly$Gene)
+UnSig_JAR_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_JAR, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_JAR_PlacentaEnriched$Gene)
+UnSig_JAR_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_JAR, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_JAR_PlacentaEnhanced$Gene)
+
+UnSig_HTR8$hgnc_symbol <- rownames(UnSig_HTR8)
+UnSig_HTR8_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_HTR8, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_HTR8_PlacentaOnly$Gene)
+UnSig_HTR8_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_HTR8, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_HTR8_PlacentaEnriched$Gene)
+UnSig_HTR8_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_HTR8, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_HTR8_PlacentaEnhanced$Gene)
+
+UnSig_BeWo$hgnc_symbol <- rownames(UnSig_BeWo)
+UnSig_BeWo_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_BeWo, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_BeWo_PlacentaOnly$Gene)
+UnSig_BeWo_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_BeWo, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_BeWo_PlacentaEnriched$Gene)
+UnSig_BeWo_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_BeWo, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_BeWo_PlacentaEnhanced$Gene)
+
+UnSig_JEG3$hgnc_symbol <- rownames(UnSig_JEG3)
+UnSig_JEG3_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_JEG3, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_JEG3_PlacentaOnly$Gene)
+UnSig_JEG3_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_JEG3, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_JEG3_PlacentaEnriched$Gene)
+UnSig_JEG3_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_JEG3, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_JEG3_PlacentaEnhanced$Gene)
+
+UnSig_Primary$hgnc_symbol <- rownames(UnSig_Primary)
+UnSig_Primary_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_Primary, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_Primary_PlacentaOnly$Gene)
+UnSig_Primary_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_Primary, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_Primary_PlacentaEnriched$Gene)
+UnSig_Primary_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_Primary, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_Primary_PlacentaEnhanced$Gene)
+
+UnSig_Explant$hgnc_symbol <- rownames(UnSig_Explant)
+UnSig_Explant_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_Explant, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_Explant_PlacentaOnly$Gene)
+UnSig_Explant_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_Explant, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_Explant_PlacentaEnriched$Gene)
+UnSig_Explant_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_Explant, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_Explant_PlacentaEnhanced$Gene)
+```
+
+## Plotting shared unchanged HPA Genes as UpsetR Plots
+```{r HPA unchanged upset}
+#Step 1: Make Vectors
+UnSig_Enhanced_Primary<- as.vector(UnSig_Primary_PlacentaEnhanced$Gene)
+UnSig_Enhanced_BeWo<- as.vector(UnSig_BeWo_PlacentaEnhanced$Gene)
+UnSig_Enhanced_HTR8<- as.vector(UnSig_HTR8_PlacentaEnhanced$Gene)
+UnSig_Enhanced_JAR<- as.vector(UnSig_JAR_PlacentaEnhanced$Gene)
+UnSig_Enhanced_JEG3<- as.vector(UnSig_JEG3_PlacentaEnhanced$Gene)
+UnSig_Enhanced_Explant<- as.vector(UnSig_Explant_PlacentaEnhanced$Gene)
+
+UnSig_Enriched_Primary<- as.vector(UnSig_Primary_PlacentaEnriched$Gene)
+UnSig_Enriched_BeWo<- as.vector(UnSig_BeWo_PlacentaEnriched$Gene)
+UnSig_Enriched_HTR8<- as.vector(UnSig_HTR8_PlacentaEnriched$Gene)
+UnSig_Enriched_JAR<- as.vector(UnSig_JAR_PlacentaEnriched$Gene)
+UnSig_Enriched_JEG3<- as.vector(UnSig_JEG3_PlacentaEnriched$Gene)
+UnSig_Enriched_Explant<- as.vector(UnSig_Explant_PlacentaEnriched$Gene)
+
+#Step 2: Turn vectors into a list
+Upset_list_Unsig_Enhanced<-list("Primary"=UnSig_Enhanced_Primary, "BeWo"=UnSig_Enhanced_BeWo, "HTR-8/SVneo"=UnSig_Enhanced_HTR8, "JAR"=UnSig_Enhanced_JAR, "JEG-3"=UnSig_Enhanced_JEG3, "Villous Explants"=UnSig_Enhanced_Explant)
+
+Upset_list_Unsig_Enriched<-list("Primary"=UnSig_Enriched_Primary, "BeWo"=UnSig_Enriched_BeWo, "HTR-8/SVneo"=UnSig_Enriched_HTR8, "JAR"=UnSig_Enriched_JAR, "JEG-3"=UnSig_Enriched_JEG3, "Villous Explants"=UnSig_Enriched_Explant)
+
+#Step 3: Plot
+upset_plot_Enhanced <- upset(fromList(Upset_list_Unsig_Enhanced), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enhanced
+
+upset_plot_Enriched <- upset(fromList(Upset_list_Unsig_Enriched), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enriched
+```
+
+
+## Plot the 8 Placenta Only Genes in Filtered Data
+```{r plot placenta only genes}
+Ruvr_logcpm_forplotting <- data.frame(Ruvr_logcpm)
+Ruvr_logcpm_forplotting$hgnc_symbol <- rownames(Ruvr_logcpm_forplotting)
+Ruvr_logcpm_PlacentaOnly <- Ruvr_logcpm_forplotting %>%
+  dplyr::filter(hgnc_symbol %in% PlacentaOnly_FilterCheck$Gene) 
+Ruvr_logcpm_PlacentaOnly <-Ruvr_logcpm_PlacentaOnly[,-1192]
+Ruvr_logcpm_PlacentaOnly_Matrix <- as.matrix(Ruvr_logcpm_PlacentaOnly)
+Flipped_PlacentaOnly <- t(Ruvr_logcpm_PlacentaOnly_Matrix)
+PlacentaOnly_RUVr_logcpm_DF <- data.frame(Flipped_PlacentaOnly)
+PlacentaOnly_RUVr_logcpm_DF$NewID <- rownames(PlacentaOnly_RUVr_logcpm_DF)
+PlacentaOnly_RUVr_logcpm_Ready <- inner_join(PlacentaOnly_RUVr_logcpm_DF, Sample_Metadata, by=c("NewID"))
+
+PlacentaOnly_RUVr_logcpm_Ready$Cell_Line <-as.factor(PlacentaOnly_RUVr_logcpm_Ready$Cell_Line)
+PlacentaOnly_RUVr_logcpm_Ready$PSG8 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$PSG8)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=PSG8)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("PSG8") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$PSG3 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$PSG3)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=PSG3)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("PSG3") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$PSG9 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$PSG9)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=PSG9)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("PSG9") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$PSG11 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$PSG11)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=PSG11)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("PSG11") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$LGALS13 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$LGALS13)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=LGALS13)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("LGALS13") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$LGALS16 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$LGALS16)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=LGALS16)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("LGALS16") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$PLAC1 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$PLAC1)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=PLAC1)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("PLAC1") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+PlacentaOnly_RUVr_logcpm_Ready$ERVV.2 <-as.numeric(PlacentaOnly_RUVr_logcpm_Ready$ERVV.2)
+
+PlacentaOnly_RUVr_logcpm_Ready %>%
+  ggplot(aes(x=Cell_Line, y=ERVV.2)) +
+  geom_boxplot() +
+  geom_point() +
+  ylim(-15, 15) +
+  ggtitle("ERVV-2") +
+  ylab("RUVr Corrected logcpm") +
+  xlab("Placental Model")
+
+```
+
+
+##Removing Pathway Analysis for now
+
+## Top Genes Heatmap
+```{r top genes}
+#Step 1: Pull Top 10 Increased and Top 10 Decreased genes for each 
+BeWo_Top10_Increased <-slice_max(.data=Sig_BeWo, order_by=logFC, n=10)
+BeWo_Top10_Decreased <-slice_min(.data=Sig_BeWo, order_by=logFC, n=10)
+
+JAR_Top10_Increased <-slice_max(.data=Sig_JAR, order_by=logFC, n=10)
+JAR_Top10_Decreased <-slice_min(.data=Sig_JAR, order_by=logFC, n=10)
+
+JEG3_Top10_Increased <-slice_max(.data=Sig_JEG3, order_by=logFC, n=10)
+JEG3_Top10_Decreased <-slice_min(.data=Sig_JEG3, order_by=logFC, n=10)
+
+HTR8_Top10_Increased <-slice_max(.data=Sig_HTR8, order_by=logFC, n=10)
+HTR8_Top10_Decreased <-slice_min(.data=Sig_HTR8, order_by=logFC, n=10)
+
+Primary_Top10_Increased <-slice_max(.data=Sig_Primary, order_by=logFC, n=10)
+Primary_Top10_Decreased <-slice_min(.data=Sig_Primary, order_by=logFC, n=10)
+
+Explant_Top10_Increased <-slice_max(.data=Sig_Explant, order_by=logFC, n=10)
+Explant_Top10_Decreased <-slice_min(.data=Sig_Explant, order_by=logFC, n=10)
+
+## Step 2: Create a vector of top increased or decreased gene names
+Top_Increased <- c(BeWo_Top10_Increased$hgnc_symbol, HTR8_Top10_Increased$hgnc_symbol, JAR_Top10_Increased$hgnc_symbol, JEG3_Top10_Increased$hgnc_symbol, Primary_Top10_Increased$hgnc_symbol, Explant_Top10_Increased$hgnc_symbol)
+
+Top_Decreased <- c(BeWo_Top10_Decreased$hgnc_symbol, HTR8_Top10_Decreased$hgnc_symbol, JAR_Top10_Decreased$hgnc_symbol, JEG3_Top10_Decreased$hgnc_symbol, Primary_Top10_Decreased$hgnc_symbol, Explant_Top10_Decreased$hgnc_symbol)
+
+#Step 3: Pull expression info for these genes from all cell types
+BeWo_Increased_Heatmap <- Sig_BeWo %>%
+  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(BeWo=logFC)
+JAR_Increased_Heatmap <- Sig_JAR %>%
+  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(JAR=logFC)
+JEG3_Increased_Heatmap <- Sig_JEG3 %>%
+  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(JEG3=logFC)
+HTR8_Increased_Heatmap <-Sig_HTR8 %>%
+  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(HTR8=logFC)
+Primary_Increased_Heatmap <-Sig_Primary %>%
+  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(Primary=logFC)
+Explant_Increased_Heatmap <-Sig_Explant %>%
+  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(Explant=logFC)
+
+BeWo_Decreased_Heatmap <- Sig_BeWo %>%
+  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(BeWo=logFC)
+JAR_Decreased_Heatmap <- Sig_JAR %>%
+  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(JAR=logFC)
+JEG3_Decreased_Heatmap <- Sig_JEG3 %>%
+  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(JEG3=logFC)
+HTR8_Decreased_Heatmap <-Sig_HTR8 %>%
+  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(HTR8=logFC)
+Primary_Decreased_Heatmap <-Sig_Primary %>%
+  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(Primary=logFC)
+Explant_Decreased_Heatmap <-Sig_Explant %>%
+  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(Explant=logFC)
+
+## Step 4: Combine into one decreased and one increased data frame
+
+Increased_DF1 <- full_join(BeWo_Increased_Heatmap, JAR_Increased_Heatmap, by=c("hgnc_symbol"))
+Increased_DF2 <- full_join(Increased_DF1, JEG3_Increased_Heatmap, by=c("hgnc_symbol"))
+Increased_DF3 <- full_join(Increased_DF2, HTR8_Increased_Heatmap, by=c("hgnc_symbol"))
+Increased_DF4 <- full_join(Increased_DF3, Primary_Increased_Heatmap, by=c("hgnc_symbol"))
+Increased_DF<- full_join(Increased_DF4, Explant_Increased_Heatmap, by=c("hgnc_symbol"))
+
+Decreased_DF1 <- full_join(BeWo_Decreased_Heatmap, JAR_Decreased_Heatmap, by=c("hgnc_symbol"))
+Decreased_DF2 <- full_join(Decreased_DF1, JEG3_Decreased_Heatmap, by=c("hgnc_symbol"))
+Decreased_DF3 <- full_join(Decreased_DF2, HTR8_Decreased_Heatmap, by=c("hgnc_symbol"))
+Decreased_DF4 <- full_join(Decreased_DF3, Primary_Decreased_Heatmap, by=c("hgnc_symbol"))
+Decreased_DF<- full_join(Decreased_DF4, Explant_Decreased_Heatmap, by=c("hgnc_symbol"))
+
+
+## Step 5: Prepare for Heatmap
+
+rownames(Increased_DF) <- Increased_DF$hgnc_symbol
+IncreasedDFReady <- Increased_DF[,c(-2)] 
+
+Increased_Matrix<- data.matrix(IncreasedDFReady)
+Increased_Matrix_Final<- t(Increased_Matrix)
+
+rownames(Decreased_DF) <- Decreased_DF$hgnc_symbol
+DecreasedDFReady <- Decreased_DF[,c(-2)] 
+
+Decreased_Matrix<- data.matrix(DecreasedDFReady)
+Decreased_Matrix_Final<- t(Decreased_Matrix)
+#write.csv(Decreased_Matrix_Final, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/MostDecreasedDEGs061423.csv")
+## Step 6: Plot Heatmap
+library(pheatmap)
+pheatmap(Increased_Matrix_Final,
+         color = colorRampPalette(c("#0092B3", "White", "#F09062"))(31),
+         scale='none',# unscaled data
+         na.color="grey",
+         cluster_rows =T,
+         cluster_cols=T,
+         na_col="grey",
+         cellwidth=5, #Change tehe for size
+         cellheight=20, #change these for size
+         treeheight_row = 0,
+         fontsize_col = 4, 
+         main="10 Most Increased DEGs for each Model")
+
+pheatmap(Decreased_Matrix_Final,
+         color = colorRampPalette(c("#0092B3", "White", "#F09062"))(31),
+         scale='none',# unscaled data
+         na.color="grey",
+         cluster_rows =T,
+         cluster_cols=T,
+         na_col="grey",
+         cellwidth=5, #Change tehe for size
+         cellheight=20, #change these for size
+         treeheight_row = 0,
+         fontsize_col = 4, 
+         main="10 Most Decreased DEGs for each Model")
+
+```
+
+## DEG Clustering
+```{r All DEGs}
+
+#Step 1: Prepare Dataframes to combine
+BeWo_forCombining <- Sig_BeWo %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(BeWo=logFC)
+JAR_forCombining <- Sig_JAR %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(JAR=logFC)
+JEG3_forCombining <- Sig_JEG3 %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(JEG3=logFC)
+HTR8_forCombining <-Sig_HTR8 %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(HTR8=logFC)
+Primary_forCombining <-Sig_Primary %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(Primary=logFC)
+Explant_forCombining <-Sig_Explant %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(Explant=logFC)
+
+#Step2 : Merge Dataframes
+DF1 <- full_join(BeWo_forCombining, JAR_forCombining, by=c("hgnc_symbol"))
+DF2 <- full_join(DF1, JEG3_forCombining, by=c("hgnc_symbol"))
+DF3 <- full_join(DF2, HTR8_forCombining, by=c("hgnc_symbol"))
+DF4 <- full_join(DF3, Primary_forCombining, by=c("hgnc_symbol"))
+DF_AllDEGs<- full_join(DF4, Explant_forCombining, by=c("hgnc_symbol"))
+
+#Step 3 Prepare Matrix
+rownames(DF_AllDEGs) <- DF_AllDEGs$hgnc_symbol
+DF_AllDEGs_Final <- DF_AllDEGs[,c(-2)] 
+DF_SharedDEGs_Final <- na.omit(DF_AllDEGs_Final)
+
+#Step 4: Perform Hierachical Clustering on Shared DEGs
+clusters <-hclust(dist(DF_SharedDEGs_Final))
+plot(clusters)
+
+# Step 5: Plot a Heatmap with hierachical clustering of shared DEGs
+AllSharedDEG_Matrix<- data.matrix(DF_SharedDEGs_Final)
+AllSharedDEGMatrix_Final<- t(AllSharedDEG_Matrix)
+
+pheatmap(AllSharedDEGMatrix_Final,
+         color = colorRampPalette(c("#0092B3", "White", "#F09062"))(31),
+         scale='none',# unscaled data
+         na.color="grey",
+         cluster_rows =T,
+         cluster_cols=T,
+         na_col="grey",
+         cellwidth=0.05, #Change tehe for size
+         cellheight=20, #change these for size
+         treeheight_row = 0,
+         fontsize_col = 0.5, 
+         main="Shared DEGs")
+```
+
+## Save voom transformed data for clustering
+```{r}
+VoomData <- v$E
+#save(VoomData, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/VoomTransformed_111723.RData")
+```
+
+### Create dataframe of DEGs for Supplement
+```{r supp table DEGs}
+#Combine all DEGs into single data frame
+Sig_JEG3_BeWo <- full_join(Sig_JEG3, Sig_BeWo, by="hgnc_symbol", suffix=c("_JEG3", "_BeWo"))
+Sig_JEG3_BeWo_Primary <- full_join(Sig_JEG3_BeWo, Sig_Primary, by="hgnc_symbol")
+Sig_JEG3_BeWo_Primary_HTR8 <- full_join(Sig_JEG3_BeWo_Primary, Sig_HTR8, by="hgnc_symbol", suffix=c("_Primary", "_HTR8"))
+Sig_JEG3_BeWo_Primary_HTR8_JAR <- full_join(Sig_JEG3_BeWo_Primary_HTR8, Sig_JAR, by="hgnc_symbol")
+Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant <- full_join(Sig_JEG3_BeWo_Primary_HTR8_JAR, Sig_Explant, by="hgnc_symbol", suffix=c("_JAR", "_Explant"))
+Sig_Combined <- Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant %>%
+  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC_Explant, adj.P.Val_Explant)
+colnames(Sig_Combined) <- c("hgnc_symbol", "logFC JEG3", "FDR JEG3", "logFC BeWo", "FDR BeWo", "logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC Villous Explants", "FDR Villous Explants")
+
+# Upload Cluster Membership of Genes
+Clusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/GeneClusterMembership_111723.csv")
+
+# Add Cluster membership to Combined Dataframe
+Sig_Combined_wClusters <- full_join(Sig_Combined, Clusters, by=c("hgnc_symbol"="X"))
+
+# Upload cluster membership for ADME and HPA genes
+ADMEClusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/ADMEClusterMembership_Combined_112023.csv")
+HPAClusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/HPACluster_Combined_112023.csv")
+
+#combine with other dataframe
+ADMEClusters <- ADMEClusters %>%
+  dplyr::select(Gene, ADME.Category)
+colnames(ADMEClusters) <- c("Gene", "ADME Category")
+
+Sig_Combined_wClusters_ADME <- full_join(Sig_Combined_wClusters, ADMEClusters, by=c("hgnc_symbol"="Gene") )
+
+HPAClusters <- HPAClusters %>%
+  dplyr::select(Gene, HPA.Category)
+colnames(HPAClusters) <- c("Gene", "HPA Category")
+
+Sig_Combined_wClusters_ADME_HPA <- full_join(Sig_Combined_wClusters_ADME, HPAClusters, by=c("hgnc_symbol"="Gene") )
+
+#Export to be used as supplemental table
+#write.csv(Sig_Combined_wClusters_ADME_HPA, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/DEGs_Clusters_SupplementalTable_112123.csv")
+
+```
+
+### Create dataframe of DEGs for Supplement
+```{r supp table AllResults}
+#Add Hgnc symbol to AllResults dataframes
+AllResults_JEG3$hgnc_symbol <- rownames(AllResults_JEG3)
+AllResults_BeWo$hgnc_symbol <- rownames(AllResults_BeWo)
+AllResults_Primary$hgnc_symbol <- rownames(AllResults_Primary)
+AllResults_HTR8$hgnc_symbol <- rownames(AllResults_HTR8)
+AllResults_JAR$hgnc_symbol <- rownames(AllResults_JAR)
+AllResults_Explant$hgnc_symbol <- rownames(AllResults_Explant)
+
+#Combine all results into single data frame
+AllResults_JEG3_BeWo <- full_join(AllResults_JEG3, AllResults_BeWo, by="hgnc_symbol", suffix=c("_JEG3", "_BeWo"))
+AllResults_JEG3_BeWo_Primary <- full_join(AllResults_JEG3_BeWo, AllResults_Primary, by="hgnc_symbol")
+AllResults_JEG3_BeWo_Primary_HTR8 <- full_join(AllResults_JEG3_BeWo_Primary, AllResults_HTR8, by="hgnc_symbol", suffix=c("_Primary", "_HTR8"))
+AllResults_JEG3_BeWo_Primary_HTR8_JAR <- full_join(AllResults_JEG3_BeWo_Primary_HTR8, AllResults_JAR, by="hgnc_symbol")
+AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant <- full_join(AllResults_JEG3_BeWo_Primary_HTR8_JAR, AllResults_Explant, by="hgnc_symbol", suffix=c("_JAR", "_Explant"))
+
+AllResults_Combined <- AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant %>%
+  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC_Explant, adj.P.Val_Explant)
+colnames(AllResults_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC Villous Explants", "FDR Villous Explants")
+
+# Add Cluster membership to Combined Dataframe
+AllResults_Combined_wClusters <- full_join(AllResults_Combined, Clusters, by=c("hgnc_symbol"="X"))
+
+#Add ADME and HPA categories
+AllResults_Combined_wClusters_ADME <- full_join(AllResults_Combined_wClusters, ADMEClusters, by=c("hgnc_symbol"="Gene") )
+
+AllResults_Combined_wClusters_ADME_HPA <- full_join(AllResults_Combined_wClusters_ADME, HPAClusters, by=c("hgnc_symbol"="Gene") )
+
+#Export to be used as supplemental table
+#write.csv(AllResults_Combined_wClusters_ADME_HPA, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/AllResults_Clusters_SupplementalTable_121523.csv")
+
+```
+
+
+## Export expression values for ShinyApp
+```{r}
+Expr_forShiny <- v$E
+
+#write.csv(Expr_forShiny, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/ExpressionData_121123.csv")
+```
+
+

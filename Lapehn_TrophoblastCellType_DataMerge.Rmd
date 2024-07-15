@@ -1,0 +1,468 @@
+---
+title: "Trophoblast Cell Type Merge"
+author: "Samantha Lapehn"
+date: "2023-11-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Trophoblast Cell Type Merge
+
+This code is merging the unfiltered data from the Campbell et al. FAC sorted placental tissue for CTBs and EVTs with villous digest STBs and the cell line data. This merge will not include CANDLE/GAPPS placental tissue or villous explants since these are tissue based models rather than cell based models.
+
+# Load Packages
+```{r load package}
+library(tidyverse)
+```
+
+#Load Data
+Data contains: 
+FACS STBs or CTBs or EVTs Samples
+3 primary trophoblast 
+5 HTR-8/SVneo
+9 BeWo (8 w/unfused, 3 w/fused some with both)
+5 JEG-3
+4 JAR
+
+```{r load Data}
+#Primary Trophoblast
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/Paquette_Controls_Primary_siRNA_030323.RData")
+PrimaryTrophoblast_1 <- Paquette_Primary_siRNA_Controls_Annotated
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/Paquette_Controls_Primary_DMSO_030323.RData")
+PrimaryTrophoblast_2 <- Paquette_Primary_DMSO_Controls_Annotated
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/Paquette_Controls_PrimaryCRH_071923.RData")
+PrimaryTrophoblast_3 <- Paquette_PrimaryCRH_Controls_Annotated
+
+#HTR-8/SVneo
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE103035_HTR8SVneo_Controls_040323.RData")
+HTR8_1<-GSE103035_HTR8SVneo_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/Paquette_Controls_HTR8SVneo_030323.RData")
+HTR8_2 <- Paquette_HTR8_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE197810_HTR8SVneo_Controls_030723.RData")
+HTR8_3 <- GSE197810_HTR8_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE154339_HTR8SVneo_Controls_033023.RData")
+HTR8_4<-GSE154339_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE85995_Controls_HTR8SVneo_040423.RData")
+HTR8_5 <-GSE85995_Controls_Annotated
+
+
+#BeWo 
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE66962_Controls_BeWo_030123.RData")
+Bewo_1 <- GSE66962_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE197810_BeWo_Controls_030723.RData")
+Bewo_2 <- GSE197810_BeWo_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE200983_BeWo_Controls_030723.RData")
+Bewo_3 <- GSE200983_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE171648_Controls_BeWo_040623.RData")
+Bewo_4 <- GSE171648_Controls_Annotated
+Bewo_4$entrezgene_id <-as.numeric(Bewo_4$entrezgene_id)
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE106394_BeWo_Controls_041923.RData")
+Bewo_5 <- GSE106394_BeWo_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE72437_Controls_BeWo_040723.RData")
+Bewo_6 <- GSE72437_BeWo_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE175815_BeWo_Controls_041123.RData")
+Bewo_7 <-GSE175815_BeWo_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE209620_BeWo_Controls_041923.RData")
+Bewo_8 <- GSE209620_BeWo_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/Paquette_Controls_BeWo_071223.RData")
+Bewo_9 <- Paquette_BeWo_Controls_Annotated
+
+
+#JEG-3
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE143859_Controls_JEG3_030723.RData")
+JEG3_1 <- GSE143859_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE185071_JEG3_Controls_040423.RData")
+JEG3_2 <- GSE185071_JEG3_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE72437_Controls_JEG3_040723.RData")
+JEG3_3 <- GSE72437_JEG3_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE106394_JEG3_Controls_041923.RData")
+JEG3_4 <- GSE106394_JEG3_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE192446_JEG3_Controls_040323.RData")
+JEG3_5 <- GSE192446_JEG3_Controls_Annotated
+
+#JAR
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE106394_JAR_Controls_041923.RData")
+JAR_1 <- GSE106394_JAR_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE216043_JAR_Controls_040423.RData")
+JAR_2 <- GSE216043_JAR_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE192446_JAR_Controls_040323.RData")
+JAR_3 <- GSE192446_JAR_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE199278_JAR_Controls_040423.RData")
+JAR_4 <- GSE199278_JAR_Controls_Annotated
+
+#FACs Sorted
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE182381_STBs_Annotated_061523.RData")
+STBs <-GSE182381_STBs_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE182381_CTBs_Annotated_061523.RData")
+CTBs <- GSE182381_CTBs_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE182381_EVTs_Annotated_061523.RData")
+EVTs <- GSE182381_EVTs_Annotated
+```
+
+### Remove unneeded annotation
+Only keeping hgnc_symbol, ensembl_gene_id, and gene_biotype
+```{r remove unneeded annotation}
+PrimaryTrophoblast_1 <- PrimaryTrophoblast_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+PrimaryTrophoblast_2 <- PrimaryTrophoblast_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+PrimaryTrophoblast_3 <- PrimaryTrophoblast_3 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+
+HTR8_1 <- HTR8_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+HTR8_2 <- HTR8_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+HTR8_3 <- HTR8_3 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+HTR8_4 <- HTR8_4 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+HTR8_5 <- HTR8_5 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_1 <- Bewo_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_2 <- Bewo_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_3 <- Bewo_3 %>%
+ dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_4 <- Bewo_4 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_5 <- Bewo_5 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_6 <- Bewo_6 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_7 <- Bewo_7 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_8 <- Bewo_8 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+Bewo_9 <- Bewo_9 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JAR_1 <- JAR_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JAR_2 <- JAR_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JAR_3 <- JAR_3 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JAR_4 <- JAR_4 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JEG3_1 <- JEG3_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JEG3_2 <- JEG3_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JEG3_3 <- JEG3_3 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JEG3_4 <- JEG3_4 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+JEG3_5 <- JEG3_5 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+STBs <- STBs %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+CTBs <- CTBs %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+EVTs <- EVTs %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+```
+
+### Merge data by CellType
+```{r cell type merge}
+#Primary Trophoblast
+PrimaryTrophoblast_1_2 <- full_join(PrimaryTrophoblast_1, PrimaryTrophoblast_2)
+PrimaryTrophoblast_All <- full_join(PrimaryTrophoblast_1_2, PrimaryTrophoblast_3)
+
+#HTR-8/SVneo
+HTR8_1_2 <- full_join(HTR8_1, HTR8_2)
+HTR8_1_2_3 <- full_join(HTR8_1_2, HTR8_3)
+HTR8_1_2_3_4 <- full_join(HTR8_1_2_3, HTR8_4)
+HTR8_All<- full_join(HTR8_1_2_3_4, HTR8_5)
+
+#BeWo
+Bewo_1_2 <-full_join(Bewo_1, Bewo_2)
+Bewo_1_2_3 <- full_join(Bewo_1_2, Bewo_3)
+Bewo_1_2_3_4 <- full_join(Bewo_1_2_3, Bewo_4)
+Bewo_1_2_3_4_5 <- full_join(Bewo_1_2_3_4, Bewo_5)
+Bewo_1_2_3_4_5_6 <- full_join(Bewo_1_2_3_4_5, Bewo_6)
+Bewo_1_2_3_4_5_6_7 <- full_join(Bewo_1_2_3_4_5_6, Bewo_7)
+Bewo_1_2_3_4_5_6_7_8 <- full_join(Bewo_1_2_3_4_5_6_7, Bewo_8)
+Bewo_All <- full_join(Bewo_1_2_3_4_5_6_7_8, Bewo_9)
+
+#JEG3
+JEG3_1_2 <- full_join(JEG3_1, JEG3_2)
+JEG3_1_2_3 <- full_join(JEG3_1_2, JEG3_3)
+JEG3_1_2_3_4 <- full_join(JEG3_1_2_3, JEG3_4)
+JEG3_All <-full_join(JEG3_1_2_3_4, JEG3_5)
+
+#JAR
+JAR_1_2<- full_join(JAR_1, JAR_2)
+JAR_1_2_3 <- full_join(JAR_1_2, JAR_3)
+JAR_All <- full_join(JAR_1_2_3, JAR_4)
+
+```
+
+### Merge all cell types into one
+```{r full merge}
+Primary_HTR8 <- full_join(PrimaryTrophoblast_All, HTR8_All)
+Primary_HTR8_Bewo <- full_join(Primary_HTR8, Bewo_All)
+Primary_HTR8_Bewo_JEG3 <- full_join(Primary_HTR8_Bewo, JEG3_All)
+Primary_HTR8_Bewo_JEG3_JAR <-full_join(Primary_HTR8_Bewo_JEG3, JAR_All)
+FullMerge_STB<- full_join(Primary_HTR8_Bewo_JEG3_JAR, STBs)
+FullMerge_CTB<- full_join(Primary_HTR8_Bewo_JEG3_JAR, CTBs)
+FullMerge_EVT<- full_join(Primary_HTR8_Bewo_JEG3_JAR, EVTs)
+```
+### Clean data names for STB
+Need to make sure the Metadata is in the same order as the samples in the FullMerge dataset
+```{r clean STB}
+Sample_Metadata_STB <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_STBs_Nov2023.csv")
+
+FullMerge_NoAnnot_STB <- FullMerge_STB %>%
+  dplyr::select(-ensembl_gene_id, -hgnc_symbol)
+
+FullMerge_AnnotationInfo_STB <-FullMerge_STB %>%
+  dplyr::select(ensembl_gene_id, hgnc_symbol)
+
+Sample_ID_STB <- Sample_Metadata_STB$Sample_ID
+
+
+#check to see if column names are in same order as new sample IDs in metadata
+check1 <- colnames(FullMerge_NoAnnot_STB) == Sample_Metadata_STB$Sample_ID
+sum(check1)
+
+
+#Reorder column names to match metadata
+Reordered_FullMerge_NoAnnot_STB<-FullMerge_NoAnnot_STB[Sample_ID_STB]
+
+#check that reordering is accurate and that the order matches
+check2 <- colnames(Reordered_FullMerge_NoAnnot_STB) == Sample_Metadata_STB$Sample_ID
+sum(check2)
+
+
+#Rename with New IDs
+colnames(Reordered_FullMerge_NoAnnot_STB) <- Sample_Metadata_STB$NewID
+FullMerge_NewIDs_STB <- Reordered_FullMerge_NoAnnot_STB
+
+#Recombine with annotation information
+FullMerge_NewIDs_Annotated_STB <- cbind(FullMerge_AnnotationInfo_STB, FullMerge_NewIDs_STB)
+
+```
+
+### Clean data names for CTB
+Need to make sure the Metadata is in the same order as the samples in the FullMerge dataset
+```{r clean CTB}
+Sample_Metadata_CTB <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_CTBs_Nov2023.csv")
+
+FullMerge_NoAnnot_CTB <- FullMerge_CTB %>%
+  dplyr::select(-ensembl_gene_id, -hgnc_symbol)
+
+FullMerge_AnnotationInfo_CTB <-FullMerge_CTB %>%
+  dplyr::select(ensembl_gene_id, hgnc_symbol)
+
+Sample_ID_CTB <- Sample_Metadata_CTB$Sample_ID
+
+
+#check to see if column names are in same order as new sample IDs in metadata
+check3 <- colnames(FullMerge_NoAnnot_CTB) == Sample_Metadata_CTB$Sample_ID
+sum(check3)
+
+
+#Reorder column names to match metadata
+Reordered_FullMerge_NoAnnot_CTB<-FullMerge_NoAnnot_CTB[Sample_ID_CTB]
+
+#check that reordering is accurate and that the order matches
+check3 <- colnames(Reordered_FullMerge_NoAnnot_CTB) == Sample_Metadata_CTB$Sample_ID
+sum(check3)
+
+
+#Rename with New IDs
+colnames(Reordered_FullMerge_NoAnnot_CTB) <- Sample_Metadata_CTB$NewID
+FullMerge_NewIDs_CTB <- Reordered_FullMerge_NoAnnot_CTB
+
+#Recombine with annotation information
+FullMerge_NewIDs_Annotated_CTB <- cbind(FullMerge_AnnotationInfo_CTB, FullMerge_NewIDs_CTB)
+
+```
+
+### Clean data names for EVT
+Need to make sure the Metadata is in the same order as the samples in the FullMerge dataset
+```{r clean EVT}
+Sample_Metadata_EVT <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_EVTs_Nov2023.csv")
+
+FullMerge_NoAnnot_EVT <- FullMerge_EVT %>%
+  dplyr::select(-ensembl_gene_id, -hgnc_symbol)
+
+FullMerge_AnnotationInfo_EVT <-FullMerge_EVT %>%
+  dplyr::select(ensembl_gene_id, hgnc_symbol)
+
+Sample_ID_EVT <- Sample_Metadata_EVT$Sample_ID
+
+
+#check to see if column names are in same order as new sample IDs in metadata
+check5 <- colnames(FullMerge_NoAnnot_EVT) == Sample_Metadata_EVT$Sample_ID
+sum(check5)
+
+
+#Reorder column names to match metadata
+Reordered_FullMerge_NoAnnot_EVT<-FullMerge_NoAnnot_EVT[Sample_ID_EVT]
+
+#check that reordering is accurate and that the order matches
+check6 <- colnames(Reordered_FullMerge_NoAnnot_EVT) == Sample_Metadata_EVT$Sample_ID
+sum(check6)
+
+
+#Rename with New IDs
+colnames(Reordered_FullMerge_NoAnnot_EVT) <- Sample_Metadata_EVT$NewID
+FullMerge_NewIDs_EVT <- Reordered_FullMerge_NoAnnot_EVT
+
+#Recombine with annotation information
+FullMerge_NewIDs_Annotated_EVT <- cbind(FullMerge_AnnotationInfo_EVT, FullMerge_NewIDs_EVT)
+
+```
+
+
+## Save Merged/Cleaned Data
+```{r save}
+#save(FullMerge_NewIDs_Annotated_STB, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_STB_111723.Rdata")
+
+#save(FullMerge_NewIDs_Annotated_CTB, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_CTB_111723.Rdata")
+
+#save(FullMerge_NewIDs_Annotated_EVT, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_EVT_111723.Rdata")
+```
