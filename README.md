@@ -1,5 +1,5 @@
 # PlacentalModelsTranscriptome
-This code was used for the analysis presented in the manuscript titled, "Transcriptomic Comparison of In Vitro Models of the Human Placenta"
+This code was used for the analysis presented in the manuscript titled, "Transcriptomic Comparison of In Vitro Models of the Human Placenta" and in the "Comparative Transcriptomic Placental Model Atlas" web tool: https://www.paquettelab.org/placental-computational-tools/ctpma
 
 
 The following code files were used for the "Placenta Tissue Model" comparing in vitro models to CANDLE/GAPPS placenta data.
@@ -9,7 +9,7 @@ The following code files were used for the "Placenta Tissue Model" comparing in 
   4) Lapehn_HierarchicalClustering.Rmd
   5) Lapehn_HPA_ADME_ClusterOverrepresentation.Rmd
 
-The following code files were used for the "Trophoblast Cell Type Models" comparing in vitro models to FACS and Villous Digest derived trophoblast cell data (STBs, EVTs, CTBs) from Campbell et al. 2023
+The following code files were used for the "Trophoblast Cell Type Models" comparing in vitro models to FACS and Villous Digest derived trophoblast cell data (STBs, EVTs, CTBs) from Campbell et al. 2023 (Communications Biology)
   1) Lapehn_TrophoblastCellType_DataMerge.Rmd
   2) Lapehn_LowExpressionGeneRemoval_FACS_CTBs.Rmd
   3) Lapehn_LowExpressionGeneRemoval_FACS_EVTs.Rmd
