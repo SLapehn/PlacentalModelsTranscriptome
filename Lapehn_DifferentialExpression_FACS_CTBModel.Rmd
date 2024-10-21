@@ -1,7 +1,7 @@
 ---
 title: "Differential Expression Analysis- FACS CTB Analysis"
 author: "Samantha Lapehn"
-date: "2023-11-17"
+date: "Sept 2024"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Differential Expression Analysis- FACS CTB Analysis
 
-Differential Expression analysis with batch correction using RUVr
+Differential Expression analysis with batch correction using RUVr. Sept 2024 update to add TSCs
 
 ### Load Packages
 ```{r load packages}
@@ -31,8 +31,8 @@ library(rgl)
 ### Load Data
 Loading data that was filtered using rowMeans(logcpm>0)
 ```{r load data}
-load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_FACS_CTB_111723.RData")
-Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_CTBs_Nov2023.csv")
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_FACS_CTB_091324.RData")
+Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_CTBs_Sept2024Revision.csv")
 ```
 
 ### Prepare Expression Matrix
@@ -155,7 +155,7 @@ ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line_Batch)) +
 ### Run First Pass Model
 ```{r First Pass}
 #PreStep: Make design matrix
-CellLine<-factor(Sample_Metadata$Cell_Line_Syn,levels=c("CTB", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR"))
+CellLine<-factor(Sample_Metadata$Cell_Line_Syn,levels=c("CTB", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR", "TSC"))
 design_original <- model.matrix(~CellLine)
 colnames(design_original) <- gsub("CellLine", "", colnames(design_original))
 design_original
@@ -163,7 +163,7 @@ design_original
 #Step 1: Estimate Dispersion: Maximizes the negative binomial likelihood to give the estimate of the common, trended and tagwise dispersions across all tags
 y_final <- DGEList(Expr_Matrix)
 y_final_norm <- calcNormFactors(y_final,method="TMM")
-y_model <- estimateDisp(y_final,design_original)
+y_model <- estimateDisp(y_final_norm,design_original)
 plotBCV(y_model)
 
 #Step 2: glmQLFIT: Fitting a linear regression model to the read counts to each gene, condcuting a genewise statistical test
@@ -194,13 +194,14 @@ v<-voom(corrected$normalizedCounts, design_corrected, plot=TRUE)
 fit <- eBayes(lmFit(v, design_corrected))
 
 
-#Step 2: Pull all results (order "CTB", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR")
+#Step 2: Pull all results (order "CTB", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR", "TSC)
 AllResults_Primary<-topTable(fit, coef=2,number=dim(fit)[1],adjust.method="BH") 
 AllResults_BeWo<-topTable(fit, coef=3,number=dim(fit)[1],adjust.method="BH") 
 AllResults_BeWo_Syn<-topTable(fit, coef=4,number=dim(fit)[1],adjust.method="BH") 
 AllResults_JEG3 <-topTable(fit, coef=5,number=dim(fit)[1],adjust.method="BH") 
 AllResults_HTR8<-topTable(fit, coef=6,number=dim(fit)[1],adjust.method="BH") 
 AllResults_JAR<-topTable(fit, coef=7,number=dim(fit)[1],adjust.method="BH") 
+AllResults_TSC<-topTable(fit, coef=8,number=dim(fit)[1],adjust.method="BH")
 #Step 3: Pull only significant results (p.adj<0.01)
 Sig_Primary <- AllResults_Primary %>%
   dplyr::filter(adj.P.Val<0.01)
@@ -214,7 +215,8 @@ Sig_HTR8 <- AllResults_HTR8 %>%
   dplyr::filter(adj.P.Val<0.01)
 Sig_JAR <- AllResults_JAR %>%
   dplyr::filter(adj.P.Val<0.01)
-
+Sig_TSC <- AllResults_TSC %>%
+  dplyr::filter(adj.P.Val<0.01)
 
 #Pull increased/decreased DEGs
 Sig_Primary_Increased <- AllResults_Primary %>%
@@ -233,6 +235,9 @@ Sig_HTR8_Increased <- AllResults_HTR8 %>%
   dplyr::filter(adj.P.Val<0.01) %>%
   dplyr::filter(logFC>0)
 Sig_JAR_Increased <- AllResults_JAR %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_TSC_Increased <- AllResults_TSC %>%
   dplyr::filter(adj.P.Val<0.01) %>%
   dplyr::filter(logFC>0)
 
@@ -256,6 +261,9 @@ Sig_HTR8_Decreased <- AllResults_HTR8 %>%
 Sig_JAR_Decreased <- AllResults_JAR %>%
   dplyr::filter(adj.P.Val<0.01) %>%
   dplyr::filter(logFC<0)
+Sig_TSC_Decreased <- AllResults_TSC %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
 
 
 
@@ -263,9 +271,9 @@ Sig_JAR_Decreased <- AllResults_JAR %>%
 
 ### Plot DEG number
 ```{r plot DEGs}
-Cell_Line_forDF <- c("Primary", "Primary", "BeWo", "BeWo", "BeWo Syn", "BeWo Syn", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "JAR", "JAR")
-Direction_DF <- c("Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased")
-DEG_number<- c(nrow(Sig_Primary_Increased), nrow(Sig_Primary_Decreased), nrow(Sig_BeWo_Increased), nrow(Sig_BeWo_Decreased), nrow(Sig_BeWo_Syn_Increased), nrow(Sig_BeWo_Syn_Decreased), nrow(Sig_JEG3_Increased), nrow(Sig_JEG3_Decreased), nrow(Sig_HTR8_Increased), nrow(Sig_HTR8_Decreased), nrow(Sig_JAR_Increased), nrow(Sig_JAR_Decreased))
+Cell_Line_forDF <- c("Primary", "Primary", "BeWo", "BeWo", "BeWo Syn", "BeWo Syn", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "JAR", "JAR", "TSC", "TSC")
+Direction_DF <- c("Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased")
+DEG_number<- c(nrow(Sig_Primary_Increased), nrow(Sig_Primary_Decreased), nrow(Sig_BeWo_Increased), nrow(Sig_BeWo_Decreased), nrow(Sig_BeWo_Syn_Increased), nrow(Sig_BeWo_Syn_Decreased), nrow(Sig_JEG3_Increased), nrow(Sig_JEG3_Decreased), nrow(Sig_HTR8_Increased), nrow(Sig_HTR8_Decreased), nrow(Sig_JAR_Increased), nrow(Sig_JAR_Decreased), nrow(Sig_TSC_Increased), nrow(Sig_TSC_Decreased))
 
 
 plot_DF <- data.frame("Direction"=Direction_DF, "Placental_Model"=Cell_Line_forDF, "DEGNumber"=DEG_number)
@@ -281,9 +289,9 @@ plot_DF %>%
   ylim(0,4000)
 
 #Plot DEG number without Directionality
-DEG_number_nodirection <- c(nrow(Sig_Primary), nrow(Sig_BeWo), nrow(Sig_BeWo_Syn), nrow(Sig_JEG3), nrow(Sig_HTR8),nrow(Sig_JAR))
+DEG_number_nodirection <- c(nrow(Sig_Primary), nrow(Sig_BeWo), nrow(Sig_BeWo_Syn), nrow(Sig_JEG3), nrow(Sig_HTR8),nrow(Sig_JAR), nrow(Sig_TSC))
 
-Cell_Line_forDF_nodirection <- c("Primary Trophoblasts", "BeWo", "BeWo Syncytialized", "JEG-3", "HTR-8/SVneo", "JAR")
+Cell_Line_forDF_nodirection <- c("Primary Trophoblasts", "BeWo", "BeWo Syncytialized", "JEG-3", "HTR-8/SVneo", "JAR", "TSC")
 
 plot_DF_nodirection <- data.frame("Placental_Model"=Cell_Line_forDF_nodirection, "DEGNumber"=DEG_number_nodirection)
 
@@ -294,7 +302,7 @@ plot_DF_nodirection %>%
   ylab("Number of DEGs") + 
   xlab("Placental Model") +
   ggtitle("Differentially Expressed Genes (FDR<0.01) compared to CTBs") + 
-  scale_fill_manual(values=c("Primary Trophoblasts"="darkorange", "HTR-8/SVneo"="gold", "JAR"="green", "JEG-3"="purple", "BeWo"="red", "BeWo Syncytialized"="firebrick4")) +
+  scale_fill_manual(values=c("Primary Trophoblasts"="darkorange", "HTR-8/SVneo"="gold", "JAR"="green", "JEG-3"="purple", "BeWo"="red", "BeWo Syncytialized"="firebrick4", "TSC"="navy")) +
   ylim(0,12000) +
   theme_minimal() +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
@@ -333,7 +341,7 @@ MakeVPlot(AllResults_BeWo_Syn,"DEGs: Synyctialized BeWo")
 MakeVPlot(AllResults_JEG3,"DEGs: JEG-3")
 MakeVPlot(AllResults_HTR8,"DEGs: HTR-8/SVneo")
 MakeVPlot(AllResults_JAR,"DEGs: JAR")
-
+MakeVPlot(AllResults_TSC,"DEGs: TSC")
 
 ```
 
@@ -443,6 +451,7 @@ color[which(Metadata_PCs_post$Cell_Line_Syn=="HTR8SVneo")] = "gold"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="JAR")] = "green"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="JEG3")] = "purple"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="Primary")] = "darkorange"
+color[which(Metadata_PCs_post$Cell_Line_Syn=="TSC")] = "navy"
 
 
 # Plot as 3D PCA
@@ -478,6 +487,7 @@ Sig_BeWo_Syn$hgnc_symbol <- rownames(Sig_BeWo_Syn)
 Sig_Primary$hgnc_symbol <- rownames(Sig_Primary)
 Sig_HTR8$hgnc_symbol <- rownames(Sig_HTR8)
 Sig_JAR$hgnc_symbol <- rownames(Sig_JAR)
+Sig_TSC$hgnc_symbol <- rownames(Sig_TSC)
                                  
 #Combine all DEGs into single data frame
 Sig_JEG3_BeWo <- full_join(Sig_JEG3, Sig_BeWo, by="hgnc_symbol", suffix=c("_JEG3", "_BeWo"))
@@ -485,14 +495,15 @@ Sig_JEG3_BeWo_BeWoSyn <- full_join(Sig_JEG3_BeWo, Sig_BeWo_Syn, by="hgnc_symbol"
 Sig_JEG3_BeWo_BeWoSyn_Primary <- full_join(Sig_JEG3_BeWo_BeWoSyn, Sig_Primary, by="hgnc_symbol", suffix=c("_BeWoSyn", "_Primary"))
 Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8 <- full_join(Sig_JEG3_BeWo_BeWoSyn_Primary, Sig_HTR8, by="hgnc_symbol")
 Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR <- full_join(Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8, Sig_JAR, by="hgnc_symbol", suffix=c("_HTR8", "_JAR"))
+Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC <- full_join(Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR, Sig_TSC, by="hgnc_symbol")
 
 #Select columns of interest
-Sig_Combined <- Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR %>%
-  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_BeWoSyn, adj.P.Val_BeWoSyn,logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR)
-colnames(Sig_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC BeWo Syncytialized", "FDR BeWo Syncytialized","logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR")
+Sig_Combined <- Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC %>%
+  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_BeWoSyn, adj.P.Val_BeWoSyn,logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC, adj.P.Val)
+colnames(Sig_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC BeWo Syncytialized", "FDR BeWo Syncytialized","logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC TSC", "FDR TSC")
 
 #Export to be used as supplemental table
-#write.csv(Sig_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_CTB_DEGs_SuppTable_120123.csv")
+#write.csv(Sig_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_CTB_DEGs_SuppTable_091324.csv")
 
 ```
 
@@ -505,6 +516,7 @@ AllResults_BeWo_Syn$hgnc_symbol <- rownames(AllResults_BeWo_Syn)
 AllResults_Primary$hgnc_symbol <- rownames(AllResults_Primary)
 AllResults_HTR8$hgnc_symbol <- rownames(AllResults_HTR8)
 AllResults_JAR$hgnc_symbol <- rownames(AllResults_JAR)
+AllResults_TSC$hgnc_symbol <- rownames(AllResults_TSC)
                                  
 #Combine all Results dataframes into single data frame
 AllResults_JEG3_BeWo <- full_join(AllResults_JEG3, AllResults_BeWo, by="hgnc_symbol", suffix=c("_JEG3", "_BeWo"))
@@ -512,14 +524,16 @@ AllResults_JEG3_BeWo_BeWoSyn <- full_join(AllResults_JEG3_BeWo, AllResults_BeWo_
 AllResults_JEG3_BeWo_BeWoSyn_Primary <- full_join(AllResults_JEG3_BeWo_BeWoSyn, AllResults_Primary, by="hgnc_symbol", suffix=c("_BeWoSyn", "_Primary"))
 AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8 <- full_join(AllResults_JEG3_BeWo_BeWoSyn_Primary, AllResults_HTR8, by="hgnc_symbol")
 AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR <- full_join(AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8, AllResults_JAR, by="hgnc_symbol", suffix=c("_HTR8", "_JAR"))
+AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC <- full_join(AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR, AllResults_TSC, by="hgnc_symbol")
+
 
 #Select columns of interest
-AllResults_Combined <- AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR %>%
-  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_BeWoSyn, adj.P.Val_BeWoSyn,logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR)
-colnames(AllResults_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC BeWo Syncytialized", "FDR BeWo Syncytialized","logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR")
+AllResults_Combined <- AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC %>%
+  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_BeWoSyn, adj.P.Val_BeWoSyn,logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC, adj.P.Val)
+colnames(AllResults_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC BeWo Syncytialized", "FDR BeWo Syncytialized","logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC TSC", "FDR TSC")
 
 #Export to be used as supplemental table
-#write.csv(AllResults_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_CTB_AllResults_SuppTable_120123.csv")
+#write.csv(AllResults_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_CTB_AllResults_SuppTable_091324.csv")
 
 ```
 
