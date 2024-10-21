@@ -1,7 +1,7 @@
 ---
-title: "Dynamic Hierarchical Clustering"
+title: "Hierarchical Clustering"
 author: "Samantha Lapehn"
-date: "2023-11-17"
+date: "Sept 2024 Update"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -13,7 +13,8 @@ fig_height: 6
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Dynamic Hierarchical Clustering
+## Dynamic Hierarchical Clustering Sept 2024
+
 
 ## Load Packages
 ```{r load packages}
@@ -25,8 +26,8 @@ library(RColorBrewer)
 ## Load Data
 Loading voom transformed expression data and sample metadata
 ```{r load data}
-load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/VoomTransformed_111723.RData")
-SampleMetadata <-read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_Nov2023.csv")
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/VoomTransformed_091124.RData")
+SampleMetadata <-read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_Sept2024_Revision.csv")
 
 VoomData_DF <- data.frame(VoomData)
 ```
@@ -56,6 +57,10 @@ JEG3_IDs <- SampleMetadata %>%
 
 Explant_IDs <- SampleMetadata %>%
   dplyr::filter(Cell_Line == "Explant") %>%
+  dplyr::select(NewID)
+
+TSC_IDs <- SampleMetadata %>%
+  dplyr::filter(Cell_Line == "TSC") %>%
   dplyr::select(NewID)
 
 Placenta_IDs <- SampleMetadata %>%
@@ -90,6 +95,10 @@ Explant_Expr <- VoomData_DF %>%
   dplyr::select(one_of(Explant_IDs$NewID))
 Explant_Expr$VillousExplants <- rowMeans(Explant_Expr)
 
+TSC_Expr <- VoomData_DF %>%
+  dplyr::select(one_of(TSC_IDs$NewID))
+TSC_Expr$TSC <- rowMeans(TSC_Expr)
+
 Placenta_Expr <- VoomData_DF %>%
   dplyr::select(one_of(Placenta_IDs$NewID))
 Placenta_Expr$PlacentaTissue <- rowMeans(Placenta_Expr)
@@ -98,8 +107,8 @@ Placenta_Expr$PlacentaTissue <- rowMeans(Placenta_Expr)
 
 ## Combine average expression of each group into a single dataframe
 ```{r combine}
-Avg_Expr <- cbind(HTR8_Expr$HTR8SVneo, BeWo_Expr$BeWo, JAR_Expr$JAR, JEG3_Expr$JEG3, Primary_Expr$PrimaryTrophoblast, Explant_Expr$VillousExplants, Placenta_Expr$PlacentaTissue)
-colnames(Avg_Expr) <- c("HTR8SVneo", "BeWo", "JAR", "JEG3", "PrimaryTrophoblasts", "VillousExplants", "PlacentaTissue")
+Avg_Expr <- cbind(HTR8_Expr$HTR8SVneo, BeWo_Expr$BeWo, JAR_Expr$JAR, JEG3_Expr$JEG3, Primary_Expr$PrimaryTrophoblast, Explant_Expr$VillousExplants, TSC_Expr$TSC, Placenta_Expr$PlacentaTissue)
+colnames(Avg_Expr) <- c("HTR8SVneo", "BeWo", "JAR", "JEG3", "PrimaryTrophoblasts", "VillousExplants", "TSC", "PlacentaTissue")
 rownames(Avg_Expr) <- rownames(Placenta_Expr)
 AvgExpr_DF <- data.frame(Avg_Expr)
 ```
@@ -173,22 +182,22 @@ ClusterHeatmap <-pheatmap(AvgExpr_Heatmap,
          annotation_col = clusters8_annotation_test,
          clustering_distance_cols ="euclidean", 
          clustering_distance_rows= "euclidean",
-         main="Clustering of All Genes (12,793), DynamicCutHeight=8, minCluster=50")
+         main="Clustering of All Genes (12,790), DynamicCutHeight=8, minCluster=50")
 ```
 
 ## Save relevant data
 ```{r save relevant data}
 #Save the data used to generate the clusters
-#save(AvgExpr_Heatmap, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/AvgExpression_forClustering_Nov2023.RData")
+#save(AvgExpr_Heatmap, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/AvgExpression_forClustering_Sept2024.RData")
 
 #Gene-Cluster Key for Annotation
-#save(clusters_8_DF_test, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/GeneClusterAnnotationKey_Nov2023.RData")
+#save(clusters_8_DF_test, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/GeneClusterAnnotationKey_Sept2024.RData")
 
 #Average expression with Cluster Annotation
-#save(AvgExpr_DF_Clusters8_test, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/AvgExpression_withClusterannotation_Nov2023.RData")
+#save(AvgExpr_DF_Clusters8_test, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/AvgExpression_withClusterannotation_Sept2024.RData")
 
 #Heatmap Object
-#save(ClusterHeatmap, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/ClusteringHeatmapObject_Nov2023.RData")
+#save(ClusterHeatmap, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/ClusteringHeatmapObject_Sept2024.RData")
 
 ```
 
@@ -213,7 +222,7 @@ pheatmap(Cluster_0_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 0 (333 genes)")
+         main="Dynamic Cluster 0 (487 genes)")
 
 Cluster_1_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==1) %>%
@@ -233,7 +242,7 @@ pheatmap(Cluster_1_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 1 (1353 genes)")
+         main="Dynamic Cluster 1 (943 genes)")
 
 Cluster_2_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==2) %>%
@@ -253,7 +262,7 @@ pheatmap(Cluster_2_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 2 (820 genes)")
+         main="Dynamic Cluster 2 (928 genes)")
 
 Cluster_3_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==3) %>%
@@ -273,7 +282,7 @@ pheatmap(Cluster_3_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 3 (591 genes)")
+         main="Dynamic Cluster 3 (926 genes)")
 
 Cluster_4_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==4) %>%
@@ -293,7 +302,7 @@ pheatmap(Cluster_4_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 4 (539 genes)")
+         main="Dynamic Cluster 4 (545 genes)")
 
 Cluster_5_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==5) %>%
@@ -313,7 +322,7 @@ pheatmap(Cluster_5_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 5 (441 genes)")
+         main="Dynamic Cluster 5 (457 genes)")
 
 Cluster_6_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==6) %>%
@@ -333,7 +342,7 @@ pheatmap(Cluster_6_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 6 (414 genes)")
+         main="Dynamic Cluster 6 (401 genes)")
 
 Cluster_7_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==7) %>%
@@ -353,7 +362,7 @@ pheatmap(Cluster_7_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 7 (403 genes)")
+         main="Dynamic Cluster 7 (398 genes)")
 
 Cluster_8_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==8) %>%
@@ -373,7 +382,7 @@ pheatmap(Cluster_8_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 8 (349 genes)")
+         main="Dynamic Cluster 8 (385 genes)")
 
 Cluster_9_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==9) %>%
@@ -393,7 +402,7 @@ pheatmap(Cluster_9_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 9 (348 genes)")
+         main="Dynamic Cluster 9 (368 genes)")
 
 Cluster_10_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==10) %>%
@@ -413,7 +422,7 @@ pheatmap(Cluster_10_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 10 (330 genes)")
+         main="Dynamic Cluster 10 (351 genes)")
 
 Cluster_11_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==11) %>%
@@ -433,7 +442,7 @@ pheatmap(Cluster_11_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 11 (324 genes)")
+         main="Dynamic Cluster 11 (334 genes)")
 
 Cluster_12_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==12) %>%
@@ -453,7 +462,7 @@ pheatmap(Cluster_12_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 12 (324 genes)")
+         main="Dynamic Cluster 12 (308 genes)")
 
 Cluster_13_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==13) %>%
@@ -473,7 +482,7 @@ pheatmap(Cluster_13_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 13 (319 genes)")
+         main="Dynamic Cluster 13 (289 genes)")
 
 Cluster_14_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==14) %>%
@@ -493,7 +502,7 @@ pheatmap(Cluster_14_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 14 (306 genes)")
+         main="Dynamic Cluster 14 (285 genes)")
 
 Cluster_15_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==15) %>%
@@ -513,7 +522,7 @@ pheatmap(Cluster_15_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 15 (290 genes)")
+         main="Dynamic Cluster 15 (282 genes)")
 
 Cluster_16_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==16) %>%
@@ -533,7 +542,7 @@ pheatmap(Cluster_16_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 16 (283 genes)")
+         main="Dynamic Cluster 16 (253 genes)")
 
 Cluster_17_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==17) %>%
@@ -553,7 +562,7 @@ pheatmap(Cluster_17_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 17 (279 genes)")
+         main="Dynamic Cluster 17 (232 genes)")
 
 Cluster_18_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==18) %>%
@@ -573,7 +582,7 @@ pheatmap(Cluster_18_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 18 (270 genes)")
+         main="Dynamic Cluster 18 (218 genes)")
 
 Cluster_19_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==19) %>%
@@ -593,7 +602,7 @@ pheatmap(Cluster_19_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 19 (258 genes)")
+         main="Dynamic Cluster 19 (211 genes)")
 
 Cluster_20_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==20) %>%
@@ -613,7 +622,7 @@ pheatmap(Cluster_20_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 20 (219 genes)")
+         main="Dynamic Cluster 20 (204 genes)")
 
 Cluster_21_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==21) %>%
@@ -633,7 +642,7 @@ pheatmap(Cluster_21_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 21 (198 genes)")
+         main="Dynamic Cluster 21 (185 genes)")
 
 Cluster_22_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==22) %>%
@@ -653,7 +662,7 @@ pheatmap(Cluster_22_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 22 (195 genes)")
+         main="Dynamic Cluster 22 (181 genes)")
 
 Cluster_23_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==23) %>%
@@ -673,7 +682,7 @@ pheatmap(Cluster_23_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 23 (175 genes)")
+         main="Dynamic Cluster 23 (176 genes)")
 
 Cluster_24_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==24) %>%
@@ -713,7 +722,7 @@ pheatmap(Cluster_25_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 25 (169 genes)")
+         main="Dynamic Cluster 25 (170 genes)")
 
 Cluster_26_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==26) %>%
@@ -733,7 +742,7 @@ pheatmap(Cluster_26_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 26 (167 genes)")
+         main="Dynamic Cluster 26 (159 genes)")
 
 Cluster_27_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==27) %>%
@@ -753,7 +762,7 @@ pheatmap(Cluster_27_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 27 (161 genes)")
+         main="Dynamic Cluster 27 (157 genes)")
 
 Cluster_28_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==28) %>%
@@ -773,7 +782,7 @@ pheatmap(Cluster_28_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 28 (160 genes)")
+         main="Dynamic Cluster 28 (155 genes)")
 
 Cluster_29_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==29) %>%
@@ -793,7 +802,7 @@ pheatmap(Cluster_29_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 29 (160 genes)")
+         main="Dynamic Cluster 29 (152 genes)")
 
 Cluster_30_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==30) %>%
@@ -813,7 +822,7 @@ pheatmap(Cluster_30_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 0.5, 
          clustering_method = "average", 
-         main="Dynamic Cluster 30 (156 genes)")
+         main="Dynamic Cluster 30 (149 genes)")
 
 Cluster_31_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==31) %>%
@@ -833,7 +842,7 @@ pheatmap(Cluster_31_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 31 (148 genes)")
+         main="Dynamic Cluster 31 (133 genes)")
 
 Cluster_32_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==32) %>%
@@ -853,7 +862,7 @@ pheatmap(Cluster_32_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 32 (143 genes)")
+         main="Dynamic Cluster 32 (130 genes)")
 
 Cluster_33_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==33) %>%
@@ -873,7 +882,7 @@ pheatmap(Cluster_33_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 33 (139 genes)")
+         main="Dynamic Cluster 33 (130 genes)")
 
 Cluster_34_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==34) %>%
@@ -893,7 +902,7 @@ pheatmap(Cluster_34_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 34 (137 genes)")
+         main="Dynamic Cluster 34 (129 genes)")
 
 Cluster_35_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==35) %>%
@@ -913,7 +922,7 @@ pheatmap(Cluster_35_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 35 (134 genes)")
+         main="Dynamic Cluster 35 (126 genes)")
 
 Cluster_36_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==36) %>%
@@ -933,7 +942,7 @@ pheatmap(Cluster_36_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 36 (127 genes)")
+         main="Dynamic Cluster 36 (124 genes)")
 
 Cluster_37_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==37) %>%
@@ -993,7 +1002,7 @@ pheatmap(Cluster_39_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 39 (120 genes)")
+         main="Dynamic Cluster 39 (121 genes)")
 
 Cluster_40_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==40) %>%
@@ -1013,7 +1022,7 @@ pheatmap(Cluster_40_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 40 (119 genes)")
+         main="Dynamic Cluster 40 (117 genes)")
 
 Cluster_41_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==41) %>%
@@ -1033,7 +1042,7 @@ pheatmap(Cluster_41_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 41 (113 genes)")
+         main="Dynamic Cluster 41 (116 genes)")
 
 Cluster_42_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==42) %>%
@@ -1053,7 +1062,7 @@ pheatmap(Cluster_42_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 42 (112 genes)")
+         main="Dynamic Cluster 42 (114 genes)")
 
 Cluster_43_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==43) %>%
@@ -1073,7 +1082,7 @@ pheatmap(Cluster_43_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 43 (108 genes)")
+         main="Dynamic Cluster 43 (110 genes)")
 
 Cluster_44_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==44) %>%
@@ -1093,7 +1102,7 @@ pheatmap(Cluster_44_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 2, 
          clustering_method = "average", 
-         main="Dynamic Cluster 44 (102 genes)")
+         main="Dynamic Cluster 44 (103 genes)")
 
 Cluster_45_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==45) %>%
@@ -1113,7 +1122,7 @@ pheatmap(Cluster_45_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 3, 
          clustering_method = "average", 
-         main="Dynamic Cluster 45 (89 genes)")
+         main="Dynamic Cluster 45 (91 genes)")
 
 Cluster_46_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==46) %>%
@@ -1133,7 +1142,7 @@ pheatmap(Cluster_46_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 3, 
          clustering_method = "average", 
-         main="Dynamic Cluster 46 (80 genes)")
+         main="Dynamic Cluster 46 (82 genes)")
 
 Cluster_47_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==47) %>%
@@ -1153,7 +1162,7 @@ pheatmap(Cluster_47_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 3, 
          clustering_method = "average", 
-         main="Dynamic Cluster 47 (79 genes)")
+         main="Dynamic Cluster 47 (77 genes)")
 
 Cluster_48_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==48) %>%
@@ -1173,7 +1182,7 @@ pheatmap(Cluster_48_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 3, 
          clustering_method = "average", 
-         main="Dynamic Cluster 48 (79 genes)")
+         main="Dynamic Cluster 48 (72 genes)")
 
 Cluster_49_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==49) %>%
@@ -1193,7 +1202,7 @@ pheatmap(Cluster_49_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 3, 
          clustering_method = "average", 
-         main="Dynamic Cluster 49 (61 genes)")
+         main="Dynamic Cluster 49 (72 genes)")
 
 Cluster_50_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==50) %>%
@@ -1213,7 +1222,7 @@ pheatmap(Cluster_50_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 4, 
          clustering_method = "average", 
-         main="Dynamic Cluster 50 (52 genes)")
+         main="Dynamic Cluster 50 (71 genes)")
 
 Cluster_51_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==51) %>%
@@ -1233,7 +1242,7 @@ pheatmap(Cluster_51_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 4, 
          clustering_method = "average", 
-         main="Dynamic Cluster 51 (51 genes)")
+         main="Dynamic Cluster 51 (61 genes)")
 
 Cluster_52_Dyn <- AvgExpr_DF_Clusters8_test %>%
   dplyr::filter(clusters_8_Test==52) %>%
@@ -1253,7 +1262,27 @@ pheatmap(Cluster_52_Heatmap_Dyn,
          treeheight_row = 0,
          fontsize_col = 4, 
          clustering_method = "average", 
-         main="Dynamic Cluster 52 (50 genes)")
+         main="Dynamic Cluster 52 (55 genes)")
+
+Cluster_53_Dyn <- AvgExpr_DF_Clusters8_test %>%
+  dplyr::filter(clusters_8_Test==53) %>%
+  dplyr::select(-clusters_8_Test)
+Cluster_53_Heatmap_Dyn <- t(Cluster_53_Dyn)
+
+pheatmap(Cluster_53_Heatmap_Dyn,
+         color = colors,
+         breaks=seq(-15,15, by=3),
+         scale='none',# unscaled data
+         na.color="grey",
+         cluster_rows =F,
+         cluster_cols=T,
+         na_col="grey",
+         cellwidth=4, #Change tehe for size
+         cellheight=20, #change these for size
+         treeheight_row = 0,
+         fontsize_col = 4, 
+         clustering_method = "average", 
+         main="Dynamic Cluster 53 (51 genes)")
 ```
 
 ## Save Gene Lists from Clusters for Pathway Analysis
@@ -1311,17 +1340,18 @@ Cluster49 <- rownames(Cluster_49_Dyn)
 Cluster50 <- rownames(Cluster_50_Dyn)
 Cluster51 <- rownames(Cluster_51_Dyn)
 Cluster52 <- rownames(Cluster_52_Dyn)
+Cluster53 <- rownames(Cluster_53_Dyn)
 
 #Save all gene lists as a List object
-Cluster_GeneLists <- list(Cluster0, Cluster1, Cluster2, Cluster3, Cluster4, Cluster5, Cluster6, Cluster7, Cluster8, Cluster9, Cluster10, Cluster11, Cluster12, Cluster13, Cluster14, Cluster15, Cluster16, Cluster17, Cluster18, Cluster19, Cluster20, Cluster21, Cluster22, Cluster23, Cluster24, Cluster25, Cluster26, Cluster27, Cluster28, Cluster29, Cluster30, Cluster31, Cluster32, Cluster33, Cluster34, Cluster35, Cluster36, Cluster37, Cluster38, Cluster39, Cluster40, Cluster41, Cluster42, Cluster43, Cluster44, Cluster45, Cluster46, Cluster47, Cluster48, Cluster49, Cluster50, Cluster51, Cluster52)
-names(Cluster_GeneLists) <-c("Cluster0", "Cluster1", "Cluster2", "Cluster3", "Cluster4", "Cluster5", "Cluster6", "Cluster7", "Cluster8", "Cluster9", "Cluster10", "Cluster11", "Cluster12", "Cluster13", "Cluster14", "Cluster15", "Cluster16", "Cluster17", "Cluster18", "Cluster19", "Cluster20", "Cluster21", "Cluster22", "Cluster23", "Cluster24", "Cluster25", "Cluster26", "Cluster27", "Cluster28", "Cluster29", "Cluster30", "Cluster31", "Cluster32", "Cluster33", "Cluster34", "Cluster35", "Cluster36", "Cluster37", "Cluster38", "Cluster39", "Cluster40", "Cluster41", "Cluster42", "Cluster43", "Cluster44", "Cluster45", "Cluster46", "Cluster47", "Cluster48", "Cluster49", "Cluster50", "Cluster51", "Cluster52")
+Cluster_GeneLists <- list(Cluster0, Cluster1, Cluster2, Cluster3, Cluster4, Cluster5, Cluster6, Cluster7, Cluster8, Cluster9, Cluster10, Cluster11, Cluster12, Cluster13, Cluster14, Cluster15, Cluster16, Cluster17, Cluster18, Cluster19, Cluster20, Cluster21, Cluster22, Cluster23, Cluster24, Cluster25, Cluster26, Cluster27, Cluster28, Cluster29, Cluster30, Cluster31, Cluster32, Cluster33, Cluster34, Cluster35, Cluster36, Cluster37, Cluster38, Cluster39, Cluster40, Cluster41, Cluster42, Cluster43, Cluster44, Cluster45, Cluster46, Cluster47, Cluster48, Cluster49, Cluster50, Cluster51, Cluster52, Cluster53)
+names(Cluster_GeneLists) <-c("Cluster0", "Cluster1", "Cluster2", "Cluster3", "Cluster4", "Cluster5", "Cluster6", "Cluster7", "Cluster8", "Cluster9", "Cluster10", "Cluster11", "Cluster12", "Cluster13", "Cluster14", "Cluster15", "Cluster16", "Cluster17", "Cluster18", "Cluster19", "Cluster20", "Cluster21", "Cluster22", "Cluster23", "Cluster24", "Cluster25", "Cluster26", "Cluster27", "Cluster28", "Cluster29", "Cluster30", "Cluster31", "Cluster32", "Cluster33", "Cluster34", "Cluster35", "Cluster36", "Cluster37", "Cluster38", "Cluster39", "Cluster40", "Cluster41", "Cluster42", "Cluster43", "Cluster44", "Cluster45", "Cluster46", "Cluster47", "Cluster48", "Cluster49", "Cluster50", "Cluster51", "Cluster52", "Cluster53")
 
-#save(Cluster_GeneLists, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/Cluster_GeneLists_111723.RData")
+#save(Cluster_GeneLists, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/Cluster_GeneLists_091124.RData")
 
 #Save background list 
 Cluster_PathwayBackground <- rownames(AvgExpr_DF)
 
-#save(Cluster_PathwayBackground, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/Cluster_PathwayBackground_111723.RData")
+#save(Cluster_PathwayBackground, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/Cluster_PathwayBackground_091124.RData")
 
 ```
 
@@ -1381,10 +1411,11 @@ Cluster49_Means <- colMeans(Cluster_49_Dyn)
 Cluster50_Means <- colMeans(Cluster_50_Dyn)
 Cluster51_Means <- colMeans(Cluster_51_Dyn)
 Cluster52_Means <- colMeans(Cluster_52_Dyn)
+Cluster53_Means <- colMeans(Cluster_53_Dyn)
 
-Cluster_Means <- rbind(Cluster0_Means, Cluster1_Means, Cluster2_Means, Cluster3_Means, Cluster4_Means, Cluster5_Means, Cluster6_Means, Cluster7_Means, Cluster8_Means, Cluster9_Means, Cluster10_Means, Cluster11_Means, Cluster12_Means, Cluster13_Means, Cluster14_Means, Cluster15_Means, Cluster16_Means, Cluster17_Means, Cluster18_Means, Cluster19_Means, Cluster20_Means, Cluster21_Means, Cluster22_Means, Cluster23_Means, Cluster24_Means, Cluster25_Means, Cluster26_Means, Cluster27_Means, Cluster28_Means, Cluster29_Means, Cluster30_Means, Cluster31_Means, Cluster32_Means, Cluster33_Means, Cluster34_Means, Cluster35_Means, Cluster36_Means, Cluster37_Means, Cluster38_Means, Cluster39_Means, Cluster40_Means, Cluster41_Means, Cluster42_Means, Cluster43_Means, Cluster44_Means, Cluster45_Means, Cluster46_Means, Cluster47_Means, Cluster48_Means, Cluster49_Means, Cluster50_Means, Cluster51_Means, Cluster52_Means)
+Cluster_Means <- rbind(Cluster0_Means, Cluster1_Means, Cluster2_Means, Cluster3_Means, Cluster4_Means, Cluster5_Means, Cluster6_Means, Cluster7_Means, Cluster8_Means, Cluster9_Means, Cluster10_Means, Cluster11_Means, Cluster12_Means, Cluster13_Means, Cluster14_Means, Cluster15_Means, Cluster16_Means, Cluster17_Means, Cluster18_Means, Cluster19_Means, Cluster20_Means, Cluster21_Means, Cluster22_Means, Cluster23_Means, Cluster24_Means, Cluster25_Means, Cluster26_Means, Cluster27_Means, Cluster28_Means, Cluster29_Means, Cluster30_Means, Cluster31_Means, Cluster32_Means, Cluster33_Means, Cluster34_Means, Cluster35_Means, Cluster36_Means, Cluster37_Means, Cluster38_Means, Cluster39_Means, Cluster40_Means, Cluster41_Means, Cluster42_Means, Cluster43_Means, Cluster44_Means, Cluster45_Means, Cluster46_Means, Cluster47_Means, Cluster48_Means, Cluster49_Means, Cluster50_Means, Cluster51_Means, Cluster52_Means, Cluster53_Means)
 
-rownames(Cluster_Means) <- c("Cluster 0", "Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Cluster 6", "Cluster 7", "Cluster 8", "Cluster 9", "Cluster 10", "Cluster 11", "Cluster 12", "Cluster 13", "Cluster 14", "Cluster 15", "Cluster 16", "Cluster 17", "Cluster 18", "Cluster 19", "Cluster 20", "Cluster 21", "Cluster 22", "Cluster 23", "Cluster 24", "Cluster 25", "Cluster 26", "Cluster 27", "Cluster 28", "Cluster 29", "Cluster 30", "Cluster 31", "Cluster 32", "Cluster 33", "Cluster 34", "Cluster 35", "Cluster 36", "Cluster 37", "Cluster 38", "Cluster 39", "Cluster 40", "Cluster 41", "Cluster 42", "Cluster 43", "Cluster 44", "Cluster 45", "Cluster 46", "Cluster 47", "Cluster 48", "Cluster 49", "Cluster 50", "Cluster 51", "Cluster 52")
+rownames(Cluster_Means) <- c("Cluster 0", "Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Cluster 6", "Cluster 7", "Cluster 8", "Cluster 9", "Cluster 10", "Cluster 11", "Cluster 12", "Cluster 13", "Cluster 14", "Cluster 15", "Cluster 16", "Cluster 17", "Cluster 18", "Cluster 19", "Cluster 20", "Cluster 21", "Cluster 22", "Cluster 23", "Cluster 24", "Cluster 25", "Cluster 26", "Cluster 27", "Cluster 28", "Cluster 29", "Cluster 30", "Cluster 31", "Cluster 32", "Cluster 33", "Cluster 34", "Cluster 35", "Cluster 36", "Cluster 37", "Cluster 38", "Cluster 39", "Cluster 40", "Cluster 41", "Cluster 42", "Cluster 43", "Cluster 44", "Cluster 45", "Cluster 46", "Cluster 47", "Cluster 48", "Cluster 49", "Cluster 50", "Cluster 51", "Cluster 52", "Cluster 53")
 ```
 
 Then use the summarized expression by cluster to plot a heatmap
@@ -1396,7 +1427,7 @@ pheatmap(Cluster_Means_transpose,
          breaks=seq(-15,15, by=3),
          scale='none',# unscaled data
          na.color="grey",
-         cluster_rows =F,
+         cluster_rows =T,
          cluster_cols=F,
          na_col="grey",
          cellwidth=8, #Change tehe for size
@@ -1405,6 +1436,7 @@ pheatmap(Cluster_Means_transpose,
          fontsize_col = 8, 
          main="Average Expression by Cluster and Placental Model")
 
+#Plot again with column clustering
 pheatmap(Cluster_Means_transpose,
          color = colors,
          breaks=seq(-15,15, by=3),
@@ -1429,7 +1461,7 @@ PlacentaOnly_HPA <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Compa
 PlacentaOnly_Clusters <- clusters8_annotation_test %>%
   dplyr::filter(row.names(clusters8_annotation_test) %in% PlacentaOnly_HPA$Gene)
 
-#write.csv(PlacentaOnly_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/HPA_PlacentaOnlyClusterAnnotation_111723.csv")
+#write.csv(PlacentaOnly_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/HPA_PlacentaOnlyClusterAnnotation_091124.csv")
 
 #Load HPA Placenta Enriched and Enhanced Genes
 PlacentaEnriched_HPA <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/HPACategories_050223/HPAPlacenta_TissueEnriched_050223.csv")
@@ -1439,19 +1471,19 @@ PlacentaEnhanced_HPA <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_C
 PlacentaEnriched_Clusters <- clusters8_annotation_test %>%
   dplyr::filter(row.names(clusters8_annotation_test) %in% PlacentaEnriched_HPA$Gene)
 
-#write.csv(PlacentaEnriched_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/HPA_PlacentaEnrichedClusterAnnotation_111723.csv")
+#write.csv(PlacentaEnriched_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/HPA_PlacentaEnrichedClusterAnnotation_091124.csv")
 
 #Overlap HPA Placenta Enhanced Genes with cluster annotations
 PlacentaEnhanced_Clusters <- clusters8_annotation_test %>%
   dplyr::filter(row.names(clusters8_annotation_test) %in% PlacentaEnhanced_HPA$Gene)
 
-#write.csv(PlacentaEnhanced_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/HPA_PlacentaEnhancedClusterAnnotation_111723.csv")
+#write.csv(PlacentaEnhanced_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/HPA_PlacentaEnhancedClusterAnnotation_091124.csv")
 
 # Plot summary heatmap of clusters with Placenta Only HPA Gene Membership
 HPA_PlacentaOnly_Clusters <- data.frame(Cluster_Means_transpose)
 HPA_PlacentaOnly_Clusters <- HPA_PlacentaOnly_Clusters %>%
-  dplyr::select("Cluster.0", "Cluster.16", "Cluster.18", "Cluster.30", "Cluster.51")
-colnames(HPA_PlacentaOnly_Clusters) <- c("Cluster 0", "Cluster 16", "Cluster 18", "Cluster 30", "Cluster 51")
+  dplyr::select("Cluster.0", "Cluster.12", "Cluster.21", "Cluster.38")
+colnames(HPA_PlacentaOnly_Clusters) <- c("Cluster 0", "Cluster 12", "Cluster 21", "Cluster 38")
 
 pheatmap(HPA_PlacentaOnly_Clusters,
          color = colors,
@@ -1505,9 +1537,9 @@ ADMECore_Clusters <- clusters8_annotation_test %>%
 ADMEExtended_Clusters <- clusters8_annotation_test %>%
   dplyr::filter(row.names(clusters8_annotation_test) %in% ADME_Extended$GeneSymbol)
 
-#write.csv(ADMECore_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/ADMECoreClusterAnnotation_111723.csv")
+#write.csv(ADMECore_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/ADMECoreClusterAnnotation_091124.csv")
 
-#write.csv(ADMEExtended_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/ADMEExtendedClusterAnnotation_111723.csv")
+#write.csv(ADMEExtended_Clusters, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/ADMEExtendedClusterAnnotation_091124.csv")
 ```
 
 ### Make heatmap of ADME genes average expression
@@ -1598,6 +1630,24 @@ pheatmap(CombinedHPA_forheatmap,
 ## Export Cluster membership for all genes
 Will use this in a supplementary table
 ```{r cluster membership}
-#write.csv(clusters8_annotation_test, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/GeneClusterMembership_111723.csv")
+#write.csv(clusters8_annotation_test, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/GeneClusterMembership_091124.csv")
 ```
+
+## Make Dataframes of Cluster Membership for ADME and HPA Genes
+```{r HPA and ADME Cluster Membership}
+HPA_GeneCategories <- cbind(CombinedHPA_AvgExpr, Annot_HPA)
+HPA_ClusterMembership <- rbind(PlacentaOnly_Clusters, PlacentaEnriched_Clusters, PlacentaEnhanced_Clusters)
+sum(rownames(HPA_GeneCategories)==rownames(HPA_ClusterMembership))
+HPA_ClusterMembership_Annotation <- cbind(HPA_GeneCategories, HPA_ClusterMembership)
+#write.csv(HPA_ClusterMembership_Annotation, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/HPA_ClusterMembership_Annotation_091124.csv")
+
+#ADME
+ADME_GeneCategories <- cbind(CombinedADME_AvgExpr, Annot_ADME)
+ADME_ClusterMembership <- rbind(ADMECore_Clusters, ADMEExtended_Clusters)
+sum(rownames(ADME_GeneCategories)==rownames(ADME_ClusterMembership))
+ADME_ClusterMembership_Annotation <- cbind(ADME_GeneCategories, ADME_ClusterMembership)
+#write.csv(ADME_ClusterMembership_Annotation, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/ADME_ClusterMembership_Annotation_091124.csv")
+
+```
+
 

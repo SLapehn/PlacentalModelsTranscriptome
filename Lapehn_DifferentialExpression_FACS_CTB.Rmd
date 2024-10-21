@@ -1,7 +1,7 @@
 ---
-title: "Differential Expression Analysis- FACS EVT Analysis"
+title: "Differential Expression Analysis- FACS CTB Analysis"
 author: "Samantha Lapehn"
-date: "Sept 2024 Update"
+date: "Sept 2024"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -11,9 +11,9 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Differential Expression Analysis- FACS EVT Analysis
+## Differential Expression Analysis- FACS CTB Analysis
 
-Differential Expression analysis with batch correction using RUVr. Sept 2024 update to add TSC data. 
+Differential Expression analysis with batch correction using RUVr. Sept 2024 update to add TSCs
 
 ### Load Packages
 ```{r load packages}
@@ -31,13 +31,12 @@ library(rgl)
 ### Load Data
 Loading data that was filtered using rowMeans(logcpm>0)
 ```{r load data}
-load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_FACS_EVT_091324.RData")
-Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_EVTs_Sept2024Revision.csv")
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_FACS_CTB_091324.RData")
+Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_CTBs_Sept2024Revision.csv")
 ```
 
 ### Prepare Expression Matrix
 ```{r Expression Matrix}
-Filtered_Counts_DF <- Filtered_Counts_DF[,-151]
 Expr_Matrix <- as.matrix(Filtered_Counts_DF)
 #changing values to integers which is required for RUVr. TXimport values have decimals.
 mode(Expr_Matrix) <- "integer"
@@ -156,7 +155,7 @@ ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line_Batch)) +
 ### Run First Pass Model
 ```{r First Pass}
 #PreStep: Make design matrix
-CellLine<-factor(Sample_Metadata$Cell_Line_Syn,levels=c("EVT", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR", "TSC"))
+CellLine<-factor(Sample_Metadata$Cell_Line_Syn,levels=c("CTB", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR", "TSC"))
 design_original <- model.matrix(~CellLine)
 colnames(design_original) <- gsub("CellLine", "", colnames(design_original))
 design_original
@@ -195,7 +194,7 @@ v<-voom(corrected$normalizedCounts, design_corrected, plot=TRUE)
 fit <- eBayes(lmFit(v, design_corrected))
 
 
-#Step 2: Pull all results (order "EVT", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR", "TSC)
+#Step 2: Pull all results (order "CTB", "Primary","BeWo", "BeWo_Syn", "JEG3", "HTR8SVneo", "JAR", "TSC)
 AllResults_Primary<-topTable(fit, coef=2,number=dim(fit)[1],adjust.method="BH") 
 AllResults_BeWo<-topTable(fit, coef=3,number=dim(fit)[1],adjust.method="BH") 
 AllResults_BeWo_Syn<-topTable(fit, coef=4,number=dim(fit)[1],adjust.method="BH") 
@@ -285,9 +284,9 @@ plot_DF %>%
   geom_text(position=position_dodge(1), aes(label=DEGNumber)) + 
   ylab("Number of DEGs") + 
   xlab("Placental Model") +
-  ggtitle("Differentially Expressed Genes (FDR<0.01) compared to EVTs") + 
+  ggtitle("Differentially Expressed Genes (FDR<0.01) compared to CTBs") + 
   scale_fill_manual(values=c("#0092B3", "#F09062")) + 
-  ylim(0,6000)
+  ylim(0,4000)
 
 #Plot DEG number without Directionality
 DEG_number_nodirection <- c(nrow(Sig_Primary), nrow(Sig_BeWo), nrow(Sig_BeWo_Syn), nrow(Sig_JEG3), nrow(Sig_HTR8),nrow(Sig_JAR), nrow(Sig_TSC))
@@ -302,12 +301,14 @@ plot_DF_nodirection %>%
   geom_text(position=position_dodge(1), vjust=-0.25, aes(label=DEGNumber)) + 
   ylab("Number of DEGs") + 
   xlab("Placental Model") +
-  ggtitle("Differentially Expressed Genes (FDR<0.01) compared to EVTs") + 
+  ggtitle("Differentially Expressed Genes (FDR<0.01) compared to CTBs") + 
   scale_fill_manual(values=c("Primary Trophoblasts"="darkorange", "HTR-8/SVneo"="gold", "JAR"="green", "JEG-3"="purple", "BeWo"="red", "BeWo Syncytialized"="firebrick4", "TSC"="navy")) +
   ylim(0,12000) +
   theme_minimal() +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+
 ```
+
 
 ##Plot DEGs with Volcano Plots
 ```{r Volcano}
@@ -441,16 +442,17 @@ EVAL_post %>%
 ```{r 3D PCA Post}
 color = rep(NA, length=length(Metadata_PCs_post$Cell_Line_Syn))
 Metadata_PCs_post$Cell_Line_Syn <- as.factor(Metadata_PCs_post$Cell_Line_Syn)
-summary(Metadata_PCs_post$Cell_Line_Syn)
+summary(Metadata_PCs_post$Cell_Line)
 #Assign colors to cell line
 color[which(Metadata_PCs_post$Cell_Line_Syn=="BeWo")] = "red"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="BeWo_Syn")] = "firebrick4"
-color[which(Metadata_PCs_post$Cell_Line_Syn=="EVT")] = "blue"
+color[which(Metadata_PCs_post$Cell_Line_Syn=="CTB")] = "blue"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="HTR8SVneo")] = "gold"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="JAR")] = "green"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="JEG3")] = "purple"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="Primary")] = "darkorange"
 color[which(Metadata_PCs_post$Cell_Line_Syn=="TSC")] = "navy"
+
 
 # Plot as 3D PCA
 plot3d(x=(Metadata_PCs_post$PC1), y=(Metadata_PCs_post$PC2), z=(Metadata_PCs_post$PC3), col=color, xlab="PC1", ylab="PC2", zlab="PC3") 
@@ -474,6 +476,7 @@ ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$Cell_Line_Batch)) +
   geom_point() + 
   ggtitle("UMAP colored by Cell Line Batch")
 ```
+
 
 ### Create dataframe of DEGs for Supplement
 ```{r supp table}
@@ -500,7 +503,7 @@ Sig_Combined <- Sig_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC %>%
 colnames(Sig_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC BeWo Syncytialized", "FDR BeWo Syncytialized","logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC TSC", "FDR TSC")
 
 #Export to be used as supplemental table
-#write.csv(Sig_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_EVT_DEGs_SuppTable_091324.csv")
+#write.csv(Sig_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_CTB_DEGs_SuppTable_091324.csv")
 
 ```
 
@@ -523,14 +526,14 @@ AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8 <- full_join(AllResults_JEG3_BeWo_BeWo
 AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR <- full_join(AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8, AllResults_JAR, by="hgnc_symbol", suffix=c("_HTR8", "_JAR"))
 AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC <- full_join(AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR, AllResults_TSC, by="hgnc_symbol")
 
+
 #Select columns of interest
 AllResults_Combined <- AllResults_JEG3_BeWo_BeWoSyn_Primary_HTR8_JAR_TSC %>%
   dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_BeWoSyn, adj.P.Val_BeWoSyn,logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC, adj.P.Val)
 colnames(AllResults_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC BeWo Syncytialized", "FDR BeWo Syncytialized","logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC TSC", "FDR TSC")
 
 #Export to be used as supplemental table
-#write.csv(AllResults_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_EVT_AllResults_SuppTable_091324.csv")
+#write.csv(AllResults_Combined, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/FACS_CTB_AllResults_SuppTable_091324.csv")
 
 ```
-
 

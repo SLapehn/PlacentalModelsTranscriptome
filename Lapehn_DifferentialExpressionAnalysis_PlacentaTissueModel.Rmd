@@ -1,7 +1,7 @@
 ---
-title: "Differential Expression Analysis"
+title: "Differential Expression Analysis- Placenta Tissue Model"
 author: "Samantha Lapehn"
-date: "2023-11-17"
+date: "Sept 2024 Update"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Differential Expression Analysis
 
-Differential Expression analysis with batch correction using RUVr and a significance threshold of FDR<0.01
+Differential Expression analysis with batch correction using RUVr and a significance threshold of FDR<0.01. Updating to include the trophoblast stem cells based on Placenta reviewer comments. 
 
 ### Load Packages
 ```{r load packages}
@@ -31,8 +31,8 @@ library(rgl)
 ### Load Data
 Loading data that was filtered using rowMeans(logcpm>0)
 ```{r load data}
-load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_111723.RData")
-Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_Nov2023.csv")
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_091124.RData")
+Sample_Metadata <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_Sept2024_Revision.csv")
 ```
 
 ### Prepare Expression Matrix
@@ -160,7 +160,7 @@ ggplot(umap_forplot, aes(x=X1, y=X2, color=Sample_Metadata$FetalSex)) +
 ### Run First Pass Model
 ```{r First Pass}
 #PreStep: Make design matrix
-CellLine<-factor(Sample_Metadata$Cell_Line,levels=c("PlacentaTissue", "Primary","BeWo", "JEG3", "HTR8SVneo", "JAR", "Explant"))
+CellLine<-factor(Sample_Metadata$Cell_Line,levels=c("PlacentaTissue", "Primary","BeWo", "JEG3", "HTR8SVneo", "JAR", "Explant", "TSC"))
 design_original <- model.matrix(~CellLine)
 colnames(design_original) <- gsub("CellLine", "", colnames(design_original))
 design_original
@@ -168,7 +168,7 @@ design_original
 #Step 1: Estimate Dispersion: Maximizes the negative binomial likelihood to give the estimate of the common, trended and tagwise dispersions across all tags
 y_final <- DGEList(Expr_Matrix)
 y_final_norm <- calcNormFactors(y_final,method="TMM")
-y_model <- estimateDisp(y_final,design_original)
+y_model <- estimateDisp(y_final_norm,design_original)
 plotBCV(y_model)
 
 #Step 2: glmQLFIT: Fitting a linear regression model to the read counts to each gene, condcuting a genewise statistical test
@@ -205,6 +205,7 @@ AllResults_JEG3 <-topTable(fit, coef=4,number=dim(fit)[1],adjust.method="BH")
 AllResults_HTR8<-topTable(fit, coef=5,number=dim(fit)[1],adjust.method="BH") 
 AllResults_JAR<-topTable(fit, coef=6,number=dim(fit)[1],adjust.method="BH") 
 AllResults_Explant<-topTable(fit, coef=7,number=dim(fit)[1],adjust.method="BH") 
+AllResults_TSC<-topTable(fit, coef=8,number=dim(fit)[1],adjust.method="BH")
 #Step 3: Pull only significant results (p.adj<0.01)
 Sig_Primary <- AllResults_Primary %>%
   dplyr::filter(adj.P.Val<0.01)
@@ -218,7 +219,8 @@ Sig_JAR <- AllResults_JAR %>%
   dplyr::filter(adj.P.Val<0.01)
 Sig_Explant <- AllResults_Explant %>%
   dplyr::filter(adj.P.Val<0.01)
-
+Sig_TSC <- AllResults_TSC %>%
+  dplyr::filter(adj.P.Val<0.01)
 #Pull increased/decreased DEGs
 Sig_Primary_Increased <- AllResults_Primary %>%
   dplyr::filter(adj.P.Val<0.01) %>%
@@ -236,6 +238,9 @@ Sig_JAR_Increased <- AllResults_JAR %>%
   dplyr::filter(adj.P.Val<0.01) %>%
   dplyr::filter(logFC>0)
 Sig_Explant_Increased <- AllResults_Explant %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC>0)
+Sig_TSC_Increased <- AllResults_TSC %>%
   dplyr::filter(adj.P.Val<0.01) %>%
   dplyr::filter(logFC>0)
 
@@ -258,15 +263,18 @@ Sig_JAR_Decreased <- AllResults_JAR %>%
 Sig_Explant_Decreased <- AllResults_Explant %>%
   dplyr::filter(adj.P.Val<0.01) %>%
   dplyr::filter(logFC<0)
+Sig_TSC_Decreased <- AllResults_TSC %>%
+  dplyr::filter(adj.P.Val<0.01) %>%
+  dplyr::filter(logFC<0)
 
 
 ```
 
 ### Plot DEG number
 ```{r plot DEGs}
-Cell_Line_forDF <- c("Primary", "Primary", "BeWo", "BeWo", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "JAR", "JAR", "Explant", "Explant")
-Direction_DF <- c("Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased")
-DEG_number<- c(nrow(Sig_Primary_Increased), nrow(Sig_Primary_Decreased), nrow(Sig_BeWo_Increased), nrow(Sig_BeWo_Decreased), nrow(Sig_JEG3_Increased), nrow(Sig_JEG3_Decreased), nrow(Sig_HTR8_Increased), nrow(Sig_HTR8_Decreased), nrow(Sig_JAR_Increased), nrow(Sig_JAR_Decreased), nrow(Sig_Explant_Increased), nrow(Sig_Explant_Decreased))
+Cell_Line_forDF <- c("Primary", "Primary", "BeWo", "BeWo", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "JAR", "JAR", "Explant", "Explant", "hTSC", "hTSC")
+Direction_DF <- c("Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased", "Increased", "Decreased")
+DEG_number<- c(nrow(Sig_Primary_Increased), nrow(Sig_Primary_Decreased), nrow(Sig_BeWo_Increased), nrow(Sig_BeWo_Decreased), nrow(Sig_JEG3_Increased), nrow(Sig_JEG3_Decreased), nrow(Sig_HTR8_Increased), nrow(Sig_HTR8_Decreased), nrow(Sig_JAR_Increased), nrow(Sig_JAR_Decreased), nrow(Sig_Explant_Increased), nrow(Sig_Explant_Decreased),nrow(Sig_TSC_Increased), nrow(Sig_TSC_Decreased))
 
 
 plot_DF <- data.frame("Direction"=Direction_DF, "Placental_Model"=Cell_Line_forDF, "DEGNumber"=DEG_number)
@@ -282,9 +290,9 @@ plot_DF %>%
   ylim(0,9000)
 
 #Plot DEG number without Directionality
-DEG_number_nodirection <- c(nrow(Sig_Primary), nrow(Sig_BeWo), nrow(Sig_JEG3), nrow(Sig_HTR8),nrow(Sig_JAR), nrow(Sig_Explant))
+DEG_number_nodirection <- c(nrow(Sig_Primary), nrow(Sig_BeWo), nrow(Sig_JEG3), nrow(Sig_HTR8),nrow(Sig_JAR), nrow(Sig_Explant), nrow(Sig_TSC))
 
-Cell_Line_forDF_nodirection <- c("Primary Trophoblasts", "BeWo", "JEG-3", "HTR-8/SVneo", "JAR", "Villous Explants")
+Cell_Line_forDF_nodirection <- c("Primary Trophoblasts", "BeWo", "JEG-3", "HTR-8/SVneo", "JAR", "Villous Explants", "hTSC")
 
 plot_DF_nodirection <- data.frame("Placental_Model"=Cell_Line_forDF_nodirection, "DEGNumber"=DEG_number_nodirection)
 
@@ -295,7 +303,7 @@ plot_DF_nodirection %>%
   ylab("Number of DEGs") + 
   xlab("Placental Model") +
   ggtitle("Differentially Expressed Genes (FDR<0.01)") + 
-  scale_fill_manual(values=c("Primary Trophoblasts"="darkorange", "HTR-8/SVneo"="gold", "Villous Explants"="magenta", "JAR"="green", "JEG-3"="purple", "BeWo"="red")) +
+  scale_fill_manual(values=c("Primary Trophoblasts"="darkorange", "HTR-8/SVneo"="gold", "Villous Explants"="magenta", "JAR"="green", "JEG-3"="purple", "BeWo"="red", "hTSC"="navy")) +
   ylim(0,12000) + 
   theme_minimal() +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
@@ -352,6 +360,8 @@ hist(AllResults_JAR$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
 hist(Sig_JAR$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
 hist(AllResults_Explant$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
 hist(Sig_Explant$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(AllResults_TSC$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
+hist(Sig_TSC$logFC, xlim=c(-20,20), ylim=c(0,5000), breaks=20)
 ```
 
 ### Principal Components Analysis - After RUVr
@@ -461,6 +471,7 @@ color[which(Metadata_PCs_post$Cell_Line=="JAR")] = "green"
 color[which(Metadata_PCs_post$Cell_Line=="JEG3")] = "purple"
 color[which(Metadata_PCs_post$Cell_Line=="Primary")] = "darkorange"
 color[which(Metadata_PCs_post$Cell_Line=="Explant")] = "magenta"
+color[which(Metadata_PCs_post$Cell_Line=="TSC")] = "navy"
 
 # Plot as 3D PCA
 plot3d(x=(Metadata_PCs_post$PC1), y=(Metadata_PCs_post$PC2), z=(Metadata_PCs_post$PC3), col=color, xlab="PC1", ylab="PC2", zlab="PC3") 
@@ -504,11 +515,13 @@ UnSig_JAR <- AllResults_JAR %>%
   dplyr::filter(adj.P.Val>0.01)
 UnSig_Explant <- AllResults_Explant %>%
   dplyr::filter(adj.P.Val>0.01)
+UnSig_TSC <- AllResults_TSC %>%
+  dplyr::filter(adj.P.Val>0.01)
 
 #Plot
-Cell_Line_forUnSigDF <- c("Primary", "BeWo", "JEG3", "HTR-8/SVneo", "JAR", "Explant")
+Cell_Line_forUnSigDF <- c("Primary", "BeWo", "JEG3", "HTR-8/SVneo", "JAR", "Explant", "hTSC")
 
-UnDEG_number<- c(nrow(UnSig_Primary), nrow(UnSig_BeWo), nrow(UnSig_JEG3), nrow(UnSig_HTR8), nrow(UnSig_JAR),  nrow(UnSig_Explant))
+UnDEG_number<- c(nrow(UnSig_Primary), nrow(UnSig_BeWo), nrow(UnSig_JEG3), nrow(UnSig_HTR8), nrow(UnSig_JAR),  nrow(UnSig_Explant), nrow(UnSig_TSC))
 
 
 UnSig_plot_DF <- data.frame( "Placental_Model"=Cell_Line_forUnSigDF, "UnDEGNumber"=UnDEG_number)
@@ -593,13 +606,21 @@ Sig_Explant_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_Explant, by
 length(Sig_Explant_PlacentaEnriched$Gene)
 Sig_Explant_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_Explant, by=c("Gene" ="hgnc_symbol"))
 length(Sig_Explant_PlacentaEnhanced$Gene)
+
+Sig_TSC$hgnc_symbol <- rownames(Sig_TSC)
+Sig_TSC_PlacentaOnly <- inner_join(HPA_PlacentaOnly, Sig_TSC, by=c("Gene" ="hgnc_symbol"))
+length(Sig_TSC_PlacentaOnly$Gene)
+Sig_TSC_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, Sig_TSC, by=c("Gene" ="hgnc_symbol"))
+length(Sig_TSC_PlacentaEnriched$Gene)
+Sig_TSC_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, Sig_TSC, by=c("Gene" ="hgnc_symbol"))
+length(Sig_TSC_PlacentaEnhanced$Gene)
 ```
 
 ## Plot HPA Overlap
 ``` {r HPA Plot DEGs}
-Cell_Line_forDF <- c("Primary", "Primary", "Primary", "BeWo", "BeWo", "BeWo", "JEG3", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "HTR-8/SVneo","JAR", "JAR", "JAR", "Explant", "Explant", "Explant")
-HPA_Category <- c("Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced")
-Overlap_number<- c(length(Sig_Primary_PlacentaOnly$Gene), length(Sig_Primary_PlacentaEnriched$Gene), length(Sig_Primary_PlacentaEnhanced$Gene), length(Sig_BeWo_PlacentaOnly$Gene), length(Sig_BeWo_PlacentaEnriched$Gene), length(Sig_BeWo_PlacentaEnhanced$Gene), length(Sig_JEG3_PlacentaOnly$Gene), length(Sig_JEG3_PlacentaEnriched$Gene), length(Sig_JEG3_PlacentaEnhanced$Gene), length(Sig_HTR8_PlacentaOnly$Gene), length(Sig_HTR8_PlacentaEnriched$Gene), length(Sig_HTR8_PlacentaEnhanced$Gene), length(Sig_JAR_PlacentaOnly$Gene), length(Sig_JAR_PlacentaEnriched$Gene), length(Sig_JAR_PlacentaEnhanced$Gene), length(Sig_Explant_PlacentaOnly$Gene), length(Sig_Explant_PlacentaEnriched$Gene), length(Sig_Explant_PlacentaEnhanced$Gene))
+Cell_Line_forDF <- c("Primary", "Primary", "Primary", "BeWo", "BeWo", "BeWo", "JEG3", "JEG3", "JEG3", "HTR-8/SVneo", "HTR-8/SVneo", "HTR-8/SVneo","JAR", "JAR", "JAR", "Explant", "Explant", "Explant", "TSC", "TSC", "TSC")
+HPA_Category <- c("Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced", "Placenta Only", "Placenta Enriched", "Placenta Enhanced")
+Overlap_number<- c(length(Sig_Primary_PlacentaOnly$Gene), length(Sig_Primary_PlacentaEnriched$Gene), length(Sig_Primary_PlacentaEnhanced$Gene), length(Sig_BeWo_PlacentaOnly$Gene), length(Sig_BeWo_PlacentaEnriched$Gene), length(Sig_BeWo_PlacentaEnhanced$Gene), length(Sig_JEG3_PlacentaOnly$Gene), length(Sig_JEG3_PlacentaEnriched$Gene), length(Sig_JEG3_PlacentaEnhanced$Gene), length(Sig_HTR8_PlacentaOnly$Gene), length(Sig_HTR8_PlacentaEnriched$Gene), length(Sig_HTR8_PlacentaEnhanced$Gene), length(Sig_JAR_PlacentaOnly$Gene), length(Sig_JAR_PlacentaEnriched$Gene), length(Sig_JAR_PlacentaEnhanced$Gene), length(Sig_Explant_PlacentaOnly$Gene), length(Sig_Explant_PlacentaEnriched$Gene), length(Sig_Explant_PlacentaEnhanced$Gene), length(Sig_TSC_PlacentaOnly$Gene), length(Sig_TSC_PlacentaEnriched$Gene), length(Sig_TSC_PlacentaEnhanced$Gene))
 
 HPAplot_DF <- data.frame("HPA_Category"=HPA_Category, "Placental_Model"=Cell_Line_forDF, "Overlap"=Overlap_number)
 
@@ -622,6 +643,7 @@ Enhanced_HTR8<- as.vector(Sig_HTR8_PlacentaEnhanced$Gene)
 Enhanced_JAR<- as.vector(Sig_JAR_PlacentaEnhanced$Gene)
 Enhanced_JEG3<- as.vector(Sig_JEG3_PlacentaEnhanced$Gene)
 Enhanced_Explant<- as.vector(Sig_Explant_PlacentaEnhanced$Gene)
+Enhanced_TSC<- as.vector(Sig_TSC_PlacentaEnhanced$Gene)
 
 Enriched_Primary<- as.vector(Sig_Primary_PlacentaEnriched$Gene)
 Enriched_BeWo<- as.vector(Sig_BeWo_PlacentaEnriched$Gene)
@@ -629,17 +651,18 @@ Enriched_HTR8<- as.vector(Sig_HTR8_PlacentaEnriched$Gene)
 Enriched_JAR<- as.vector(Sig_JAR_PlacentaEnriched$Gene)
 Enriched_JEG3<- as.vector(Sig_JEG3_PlacentaEnriched$Gene)
 Enriched_Explant<- as.vector(Sig_Explant_PlacentaEnriched$Gene)
+Enriched_TSC<- as.vector(Sig_TSC_PlacentaEnriched$Gene)
 
 #Step 2: Turn vectors into a list
-Upset_list_sig_Enhanced<-list("Primary"=Enhanced_Primary, "BeWo"=Enhanced_BeWo, "HTR-8/SVneo"=Enhanced_HTR8, "JAR"=Enhanced_JAR, "JEG-3"=Enhanced_JEG3, "Villous Explants"=Enhanced_Explant)
+Upset_list_sig_Enhanced<-list("Primary"=Enhanced_Primary, "BeWo"=Enhanced_BeWo, "HTR-8/SVneo"=Enhanced_HTR8, "JAR"=Enhanced_JAR, "JEG-3"=Enhanced_JEG3, "Villous Explants"=Enhanced_Explant, "TSC"=Enhanced_TSC)
 
-Upset_list_sig_Enriched<-list("Primary"=Enriched_Primary, "BeWo"=Enriched_BeWo, "HTR-8/SVneo"=Enriched_HTR8, "JAR"=Enriched_JAR, "JEG-3"=Enriched_JEG3, "Villous Explants"=Enriched_Explant)
+Upset_list_sig_Enriched<-list("Primary"=Enriched_Primary, "BeWo"=Enriched_BeWo, "HTR-8/SVneo"=Enriched_HTR8, "JAR"=Enriched_JAR, "JEG-3"=Enriched_JEG3, "Villous Explants"=Enriched_Explant, "TSC"=Enriched_TSC)
 
 #Step 3: Plot
-upset_plot_Enhanced_Sig <- upset(fromList(Upset_list_sig_Enhanced), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enhanced_Sig <- upset(fromList(Upset_list_sig_Enhanced), nsets=7,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants", "TSC"), keep.order=T)
 upset_plot_Enhanced_Sig
 
-upset_plot_Enriched_Sig <- upset(fromList(Upset_list_sig_Enriched), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enriched_Sig <- upset(fromList(Upset_list_sig_Enriched), nsets=7,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants", "TSC"), keep.order=T)
 upset_plot_Enriched_Sig
 
 ```
@@ -694,6 +717,14 @@ UnSig_Explant_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_Explant
 length(UnSig_Explant_PlacentaEnriched$Gene)
 UnSig_Explant_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_Explant, by=c("Gene" ="hgnc_symbol"))
 length(UnSig_Explant_PlacentaEnhanced$Gene)
+
+UnSig_TSC$hgnc_symbol <- rownames(UnSig_TSC)
+UnSig_TSC_PlacentaOnly <- inner_join(HPA_PlacentaOnly, UnSig_TSC, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_TSC_PlacentaOnly$Gene)
+UnSig_TSC_PlacentaEnriched <- inner_join(HPA_PlacentaEnriched, UnSig_TSC, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_TSC_PlacentaEnriched$Gene)
+UnSig_TSC_PlacentaEnhanced <- inner_join(HPA_PlacentaEnhanced, UnSig_TSC, by=c("Gene" ="hgnc_symbol"))
+length(UnSig_TSC_PlacentaEnhanced$Gene)
 ```
 
 ## Plotting shared unchanged HPA Genes as UpsetR Plots
@@ -705,6 +736,7 @@ UnSig_Enhanced_HTR8<- as.vector(UnSig_HTR8_PlacentaEnhanced$Gene)
 UnSig_Enhanced_JAR<- as.vector(UnSig_JAR_PlacentaEnhanced$Gene)
 UnSig_Enhanced_JEG3<- as.vector(UnSig_JEG3_PlacentaEnhanced$Gene)
 UnSig_Enhanced_Explant<- as.vector(UnSig_Explant_PlacentaEnhanced$Gene)
+UnSig_Enhanced_TSC<- as.vector(UnSig_TSC_PlacentaEnhanced$Gene)
 
 UnSig_Enriched_Primary<- as.vector(UnSig_Primary_PlacentaEnriched$Gene)
 UnSig_Enriched_BeWo<- as.vector(UnSig_BeWo_PlacentaEnriched$Gene)
@@ -712,17 +744,18 @@ UnSig_Enriched_HTR8<- as.vector(UnSig_HTR8_PlacentaEnriched$Gene)
 UnSig_Enriched_JAR<- as.vector(UnSig_JAR_PlacentaEnriched$Gene)
 UnSig_Enriched_JEG3<- as.vector(UnSig_JEG3_PlacentaEnriched$Gene)
 UnSig_Enriched_Explant<- as.vector(UnSig_Explant_PlacentaEnriched$Gene)
+UnSig_Enriched_TSC<- as.vector(UnSig_TSC_PlacentaEnriched$Gene)
 
 #Step 2: Turn vectors into a list
-Upset_list_Unsig_Enhanced<-list("Primary"=UnSig_Enhanced_Primary, "BeWo"=UnSig_Enhanced_BeWo, "HTR-8/SVneo"=UnSig_Enhanced_HTR8, "JAR"=UnSig_Enhanced_JAR, "JEG-3"=UnSig_Enhanced_JEG3, "Villous Explants"=UnSig_Enhanced_Explant)
+Upset_list_Unsig_Enhanced<-list("Primary"=UnSig_Enhanced_Primary, "BeWo"=UnSig_Enhanced_BeWo, "HTR-8/SVneo"=UnSig_Enhanced_HTR8, "JAR"=UnSig_Enhanced_JAR, "JEG-3"=UnSig_Enhanced_JEG3, "Villous Explants"=UnSig_Enhanced_Explant, "TSC"=UnSig_Enhanced_TSC)
 
-Upset_list_Unsig_Enriched<-list("Primary"=UnSig_Enriched_Primary, "BeWo"=UnSig_Enriched_BeWo, "HTR-8/SVneo"=UnSig_Enriched_HTR8, "JAR"=UnSig_Enriched_JAR, "JEG-3"=UnSig_Enriched_JEG3, "Villous Explants"=UnSig_Enriched_Explant)
+Upset_list_Unsig_Enriched<-list("Primary"=UnSig_Enriched_Primary, "BeWo"=UnSig_Enriched_BeWo, "HTR-8/SVneo"=UnSig_Enriched_HTR8, "JAR"=UnSig_Enriched_JAR, "JEG-3"=UnSig_Enriched_JEG3, "Villous Explants"=UnSig_Enriched_Explant, "TSC"=UnSig_Enhanced_TSC)
 
 #Step 3: Plot
-upset_plot_Enhanced <- upset(fromList(Upset_list_Unsig_Enhanced), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enhanced <- upset(fromList(Upset_list_Unsig_Enhanced), nsets=7,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants", "TSC"), keep.order=T)
 upset_plot_Enhanced
 
-upset_plot_Enriched <- upset(fromList(Upset_list_Unsig_Enriched), nsets=6,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants"), keep.order=T)
+upset_plot_Enriched <- upset(fromList(Upset_list_Unsig_Enriched), nsets=7,  text.scale=2, sets=c("Primary", "BeWo", "HTR-8/SVneo", "JAR", "JEG-3", "Villous Explants", "TSC"), keep.order=T)
 upset_plot_Enriched
 ```
 
@@ -831,144 +864,8 @@ PlacentaOnly_RUVr_logcpm_Ready %>%
 
 ```
 
-
 ##Removing Pathway Analysis for now
 
-## Top Genes Heatmap
-```{r top genes}
-#Step 1: Pull Top 10 Increased and Top 10 Decreased genes for each 
-BeWo_Top10_Increased <-slice_max(.data=Sig_BeWo, order_by=logFC, n=10)
-BeWo_Top10_Decreased <-slice_min(.data=Sig_BeWo, order_by=logFC, n=10)
-
-JAR_Top10_Increased <-slice_max(.data=Sig_JAR, order_by=logFC, n=10)
-JAR_Top10_Decreased <-slice_min(.data=Sig_JAR, order_by=logFC, n=10)
-
-JEG3_Top10_Increased <-slice_max(.data=Sig_JEG3, order_by=logFC, n=10)
-JEG3_Top10_Decreased <-slice_min(.data=Sig_JEG3, order_by=logFC, n=10)
-
-HTR8_Top10_Increased <-slice_max(.data=Sig_HTR8, order_by=logFC, n=10)
-HTR8_Top10_Decreased <-slice_min(.data=Sig_HTR8, order_by=logFC, n=10)
-
-Primary_Top10_Increased <-slice_max(.data=Sig_Primary, order_by=logFC, n=10)
-Primary_Top10_Decreased <-slice_min(.data=Sig_Primary, order_by=logFC, n=10)
-
-Explant_Top10_Increased <-slice_max(.data=Sig_Explant, order_by=logFC, n=10)
-Explant_Top10_Decreased <-slice_min(.data=Sig_Explant, order_by=logFC, n=10)
-
-## Step 2: Create a vector of top increased or decreased gene names
-Top_Increased <- c(BeWo_Top10_Increased$hgnc_symbol, HTR8_Top10_Increased$hgnc_symbol, JAR_Top10_Increased$hgnc_symbol, JEG3_Top10_Increased$hgnc_symbol, Primary_Top10_Increased$hgnc_symbol, Explant_Top10_Increased$hgnc_symbol)
-
-Top_Decreased <- c(BeWo_Top10_Decreased$hgnc_symbol, HTR8_Top10_Decreased$hgnc_symbol, JAR_Top10_Decreased$hgnc_symbol, JEG3_Top10_Decreased$hgnc_symbol, Primary_Top10_Decreased$hgnc_symbol, Explant_Top10_Decreased$hgnc_symbol)
-
-#Step 3: Pull expression info for these genes from all cell types
-BeWo_Increased_Heatmap <- Sig_BeWo %>%
-  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(BeWo=logFC)
-JAR_Increased_Heatmap <- Sig_JAR %>%
-  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(JAR=logFC)
-JEG3_Increased_Heatmap <- Sig_JEG3 %>%
-  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(JEG3=logFC)
-HTR8_Increased_Heatmap <-Sig_HTR8 %>%
-  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(HTR8=logFC)
-Primary_Increased_Heatmap <-Sig_Primary %>%
-  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(Primary=logFC)
-Explant_Increased_Heatmap <-Sig_Explant %>%
-  dplyr::filter(hgnc_symbol %in% Top_Increased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(Explant=logFC)
-
-BeWo_Decreased_Heatmap <- Sig_BeWo %>%
-  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(BeWo=logFC)
-JAR_Decreased_Heatmap <- Sig_JAR %>%
-  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(JAR=logFC)
-JEG3_Decreased_Heatmap <- Sig_JEG3 %>%
-  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(JEG3=logFC)
-HTR8_Decreased_Heatmap <-Sig_HTR8 %>%
-  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(HTR8=logFC)
-Primary_Decreased_Heatmap <-Sig_Primary %>%
-  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(Primary=logFC)
-Explant_Decreased_Heatmap <-Sig_Explant %>%
-  dplyr::filter(hgnc_symbol %in% Top_Decreased) %>%
-  dplyr::select(logFC, hgnc_symbol) %>%
-  dplyr::rename(Explant=logFC)
-
-## Step 4: Combine into one decreased and one increased data frame
-
-Increased_DF1 <- full_join(BeWo_Increased_Heatmap, JAR_Increased_Heatmap, by=c("hgnc_symbol"))
-Increased_DF2 <- full_join(Increased_DF1, JEG3_Increased_Heatmap, by=c("hgnc_symbol"))
-Increased_DF3 <- full_join(Increased_DF2, HTR8_Increased_Heatmap, by=c("hgnc_symbol"))
-Increased_DF4 <- full_join(Increased_DF3, Primary_Increased_Heatmap, by=c("hgnc_symbol"))
-Increased_DF<- full_join(Increased_DF4, Explant_Increased_Heatmap, by=c("hgnc_symbol"))
-
-Decreased_DF1 <- full_join(BeWo_Decreased_Heatmap, JAR_Decreased_Heatmap, by=c("hgnc_symbol"))
-Decreased_DF2 <- full_join(Decreased_DF1, JEG3_Decreased_Heatmap, by=c("hgnc_symbol"))
-Decreased_DF3 <- full_join(Decreased_DF2, HTR8_Decreased_Heatmap, by=c("hgnc_symbol"))
-Decreased_DF4 <- full_join(Decreased_DF3, Primary_Decreased_Heatmap, by=c("hgnc_symbol"))
-Decreased_DF<- full_join(Decreased_DF4, Explant_Decreased_Heatmap, by=c("hgnc_symbol"))
-
-
-## Step 5: Prepare for Heatmap
-
-rownames(Increased_DF) <- Increased_DF$hgnc_symbol
-IncreasedDFReady <- Increased_DF[,c(-2)] 
-
-Increased_Matrix<- data.matrix(IncreasedDFReady)
-Increased_Matrix_Final<- t(Increased_Matrix)
-
-rownames(Decreased_DF) <- Decreased_DF$hgnc_symbol
-DecreasedDFReady <- Decreased_DF[,c(-2)] 
-
-Decreased_Matrix<- data.matrix(DecreasedDFReady)
-Decreased_Matrix_Final<- t(Decreased_Matrix)
-#write.csv(Decreased_Matrix_Final, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/MostDecreasedDEGs061423.csv")
-## Step 6: Plot Heatmap
-library(pheatmap)
-pheatmap(Increased_Matrix_Final,
-         color = colorRampPalette(c("#0092B3", "White", "#F09062"))(31),
-         scale='none',# unscaled data
-         na.color="grey",
-         cluster_rows =T,
-         cluster_cols=T,
-         na_col="grey",
-         cellwidth=5, #Change tehe for size
-         cellheight=20, #change these for size
-         treeheight_row = 0,
-         fontsize_col = 4, 
-         main="10 Most Increased DEGs for each Model")
-
-pheatmap(Decreased_Matrix_Final,
-         color = colorRampPalette(c("#0092B3", "White", "#F09062"))(31),
-         scale='none',# unscaled data
-         na.color="grey",
-         cluster_rows =T,
-         cluster_cols=T,
-         na_col="grey",
-         cellwidth=5, #Change tehe for size
-         cellheight=20, #change these for size
-         treeheight_row = 0,
-         fontsize_col = 4, 
-         main="10 Most Decreased DEGs for each Model")
-
-```
 
 ## DEG Clustering
 ```{r All DEGs}
@@ -992,13 +889,17 @@ Primary_forCombining <-Sig_Primary %>%
 Explant_forCombining <-Sig_Explant %>%
   dplyr::select(logFC, hgnc_symbol) %>%
   dplyr::rename(Explant=logFC)
+TSC_forCombining <-Sig_TSC %>%
+  dplyr::select(logFC, hgnc_symbol) %>%
+  dplyr::rename(TSC=logFC)
 
 #Step2 : Merge Dataframes
 DF1 <- full_join(BeWo_forCombining, JAR_forCombining, by=c("hgnc_symbol"))
 DF2 <- full_join(DF1, JEG3_forCombining, by=c("hgnc_symbol"))
 DF3 <- full_join(DF2, HTR8_forCombining, by=c("hgnc_symbol"))
 DF4 <- full_join(DF3, Primary_forCombining, by=c("hgnc_symbol"))
-DF_AllDEGs<- full_join(DF4, Explant_forCombining, by=c("hgnc_symbol"))
+DF5 <- full_join(DF4, Explant_forCombining, by=c("hgnc_symbol"))
+DF_AllDEGs<- full_join(DF5, TSC_forCombining, by=c("hgnc_symbol"))
 
 #Step 3 Prepare Matrix
 rownames(DF_AllDEGs) <- DF_AllDEGs$hgnc_symbol
@@ -1030,7 +931,7 @@ pheatmap(AllSharedDEGMatrix_Final,
 ## Save voom transformed data for clustering
 ```{r}
 VoomData <- v$E
-#save(VoomData, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/VoomTransformed_111723.RData")
+#save(VoomData, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/VoomTransformed_091124.RData")
 ```
 
 ### Create dataframe of DEGs for Supplement
@@ -1041,39 +942,40 @@ Sig_JEG3_BeWo_Primary <- full_join(Sig_JEG3_BeWo, Sig_Primary, by="hgnc_symbol")
 Sig_JEG3_BeWo_Primary_HTR8 <- full_join(Sig_JEG3_BeWo_Primary, Sig_HTR8, by="hgnc_symbol", suffix=c("_Primary", "_HTR8"))
 Sig_JEG3_BeWo_Primary_HTR8_JAR <- full_join(Sig_JEG3_BeWo_Primary_HTR8, Sig_JAR, by="hgnc_symbol")
 Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant <- full_join(Sig_JEG3_BeWo_Primary_HTR8_JAR, Sig_Explant, by="hgnc_symbol", suffix=c("_JAR", "_Explant"))
-Sig_Combined <- Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant %>%
-  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC_Explant, adj.P.Val_Explant)
-colnames(Sig_Combined) <- c("hgnc_symbol", "logFC JEG3", "FDR JEG3", "logFC BeWo", "FDR BeWo", "logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC Villous Explants", "FDR Villous Explants")
+Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant_TSC <- full_join(Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant, Sig_TSC, by="hgnc_symbol")
+Sig_Combined <- Sig_JEG3_BeWo_Primary_HTR8_JAR_Explant_TSC %>%
+  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC_Explant, adj.P.Val_Explant, logFC, adj.P.Val)
+colnames(Sig_Combined) <- c("hgnc_symbol", "logFC JEG3", "FDR JEG3", "logFC BeWo", "FDR BeWo", "logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC Villous Explants", "FDR Villous Explants", "logFC TSC", "FDR TSC")
 
 # Upload Cluster Membership of Genes
-Clusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/GeneClusterMembership_111723.csv")
+Clusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/GeneClusterMembership_091124.csv")
 
 # Add Cluster membership to Combined Dataframe
 Sig_Combined_wClusters <- full_join(Sig_Combined, Clusters, by=c("hgnc_symbol"="X"))
 
 # Upload cluster membership for ADME and HPA genes
-ADMEClusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/ADMEClusterMembership_Combined_112023.csv")
-HPAClusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Nov 2023/HPACluster_Combined_112023.csv")
+ADMEClusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/ADME_ClusterMembership_Annotation_091124.csv")
+HPAClusters <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Results/Clustering Sept 2024/HPA_ClusterMembership_Annotation_091124.csv")
 
 #combine with other dataframe
 ADMEClusters <- ADMEClusters %>%
-  dplyr::select(Gene, ADME.Category)
+  dplyr::select(X, Annot_ADME)
 colnames(ADMEClusters) <- c("Gene", "ADME Category")
 
 Sig_Combined_wClusters_ADME <- full_join(Sig_Combined_wClusters, ADMEClusters, by=c("hgnc_symbol"="Gene") )
 
 HPAClusters <- HPAClusters %>%
-  dplyr::select(Gene, HPA.Category)
+  dplyr::select(X, Annot_HPA)
 colnames(HPAClusters) <- c("Gene", "HPA Category")
 
 Sig_Combined_wClusters_ADME_HPA <- full_join(Sig_Combined_wClusters_ADME, HPAClusters, by=c("hgnc_symbol"="Gene") )
 
 #Export to be used as supplemental table
-#write.csv(Sig_Combined_wClusters_ADME_HPA, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/DEGs_Clusters_SupplementalTable_112123.csv")
+#write.csv(Sig_Combined_wClusters_ADME_HPA, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials_Sept2024/DEGs_Clusters_SupplementalTable_091124.csv")
 
 ```
 
-### Create dataframe of DEGs for Supplement
+### Create dataframe of All Results for Supplement
 ```{r supp table AllResults}
 #Add Hgnc symbol to AllResults dataframes
 AllResults_JEG3$hgnc_symbol <- rownames(AllResults_JEG3)
@@ -1082,6 +984,7 @@ AllResults_Primary$hgnc_symbol <- rownames(AllResults_Primary)
 AllResults_HTR8$hgnc_symbol <- rownames(AllResults_HTR8)
 AllResults_JAR$hgnc_symbol <- rownames(AllResults_JAR)
 AllResults_Explant$hgnc_symbol <- rownames(AllResults_Explant)
+AllResults_TSC$hgnc_symbol <- rownames(AllResults_TSC)
 
 #Combine all results into single data frame
 AllResults_JEG3_BeWo <- full_join(AllResults_JEG3, AllResults_BeWo, by="hgnc_symbol", suffix=c("_JEG3", "_BeWo"))
@@ -1089,10 +992,11 @@ AllResults_JEG3_BeWo_Primary <- full_join(AllResults_JEG3_BeWo, AllResults_Prima
 AllResults_JEG3_BeWo_Primary_HTR8 <- full_join(AllResults_JEG3_BeWo_Primary, AllResults_HTR8, by="hgnc_symbol", suffix=c("_Primary", "_HTR8"))
 AllResults_JEG3_BeWo_Primary_HTR8_JAR <- full_join(AllResults_JEG3_BeWo_Primary_HTR8, AllResults_JAR, by="hgnc_symbol")
 AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant <- full_join(AllResults_JEG3_BeWo_Primary_HTR8_JAR, AllResults_Explant, by="hgnc_symbol", suffix=c("_JAR", "_Explant"))
+AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant_TSC <- full_join(AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant, AllResults_TSC, by="hgnc_symbol")
 
-AllResults_Combined <- AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant %>%
-  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC_Explant, adj.P.Val_Explant)
-colnames(AllResults_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC Villous Explants", "FDR Villous Explants")
+AllResults_Combined <- AllResults_JEG3_BeWo_Primary_HTR8_JAR_Explant_TSC %>%
+  dplyr::select(hgnc_symbol, logFC_JEG3, adj.P.Val_JEG3, logFC_BeWo, adj.P.Val_BeWo, logFC_Primary, adj.P.Val_Primary, logFC_HTR8, adj.P.Val_HTR8, logFC_JAR, adj.P.Val_JAR, logFC_Explant, adj.P.Val_Explant, logFC, adj.P.Val)
+colnames(AllResults_Combined) <- c("hgnc_symbol", "logFC JEG-3", "FDR JEG-3", "logFC BeWo", "FDR BeWo", "logFC Primary Trophoblasts", "FDR Primary Trophoblasts", "logFC HTR-8/SVneo", "FDR HTR-8/SVneo", "logFC JAR", "FDR JAR", "logFC Villous Explants", "FDR Villous Explants", "logFC TSC", "FDR TSC")
 
 # Add Cluster membership to Combined Dataframe
 AllResults_Combined_wClusters <- full_join(AllResults_Combined, Clusters, by=c("hgnc_symbol"="X"))
@@ -1103,7 +1007,7 @@ AllResults_Combined_wClusters_ADME <- full_join(AllResults_Combined_wClusters, A
 AllResults_Combined_wClusters_ADME_HPA <- full_join(AllResults_Combined_wClusters_ADME, HPAClusters, by=c("hgnc_symbol"="Gene") )
 
 #Export to be used as supplemental table
-#write.csv(AllResults_Combined_wClusters_ADME_HPA, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials/AllResults_Clusters_SupplementalTable_121523.csv")
+#write.csv(AllResults_Combined_wClusters_ADME_HPA, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SupplementalMaterials_Sept2024/AllResults_Clusters_SupplementalTable_091124.csv")
 
 ```
 
@@ -1112,7 +1016,7 @@ AllResults_Combined_wClusters_ADME_HPA <- full_join(AllResults_Combined_wCluster
 ```{r}
 Expr_forShiny <- v$E
 
-#write.csv(Expr_forShiny, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/ExpressionData_121123.csv")
+#write.csv(Expr_forShiny, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/ExpressionData_091124.csv")
 ```
 
 

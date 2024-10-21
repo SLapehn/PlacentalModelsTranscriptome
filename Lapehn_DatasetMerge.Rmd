@@ -1,7 +1,7 @@
 ---
-title: "Data Merge"
+title: "Data Merge4"
 author: "Samantha Lapehn"
-date: "2023-11-17"
+date: "Sept 2024 Update"
 output: html_document
 ---
 
@@ -9,8 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Data Merge Nov 2023
-Performing a merge of CANDLE/GAPPS data with available placenta cell line data as of Nov 2023. 
+## Data Merge Sept 2024
+Performing a merge of CANDLE/GAPPS data with availalbe placenta cell line data as of Sept 2024 following first round of reviews with "Placenta". Based on these reviews I am  adding trophoblasts stem cells to the CTPMA.  
 
 ### Load Packages
 ```{r packages}
@@ -26,6 +26,7 @@ CANDLE/GAPPS placentas
 5 JEG-3
 4 JAR
 2 Explants (one 1st tri, one 2nd tri)
+4 hTSCs
 ```{r load data}
 #Primary Trophoblast
 load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/Paquette_Controls_Primary_siRNA_030323.RData")
@@ -126,6 +127,20 @@ CANDLE_GAPPS <- candle_gapps_annotated %>%
   dplyr::rename(hgnc_symbol = SYMBOL) %>%
   dplyr::rename(gene_biotype = BIOTYPE) %>%
   dplyr::rename(description = DESCRIPTION)
+
+#Human TSCs
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE208538_TSC_Controls_090924.RData")
+TSC_1 <- GSE208538_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE209976_TSC_Controls_090924.RData")
+TSC_2 <- GSE209976_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE196259_TSC_Controls_090924.RData")
+TSC_3 <- GSE196259_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE188738_TSC_Controls_090924.RData")
+TSC_4 <- GSE188738_Controls_Annotated
+
 ```
 
 ### Remove unneeded annotation
@@ -304,6 +319,30 @@ CANDLE_GAPPS <- CANDLE_GAPPS %>%
   dplyr::select(-description, -gene_biotype) %>%
   dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
   dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_1 <- TSC_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_2 <- TSC_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_3 <- TSC_3 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_4 <- TSC_4 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
 ```
 
 
@@ -351,6 +390,12 @@ JAR_All <- full_join(JAR_1_2_3, JAR_4)
 Explant_All <- full_join(Explant_1, Explant_2)
 #save(Explant_All, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Cell Line Unfiltered Data/Explant_Merged_Unfiltered_111723.Rdata")
 
+#TSCs
+TSC_1_2<- full_join(TSC_1, TSC_2)
+TSC_1_2_3 <- full_join(TSC_1_2, TSC_3)
+TSC_All <- full_join(TSC_1_2_3, TSC_4)
+#save(TSC_All, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Cell Line Unfiltered Data/JAR_Merged_Unfiltered_090924.Rdata")
+
 ```
 
 
@@ -361,7 +406,8 @@ Primary_HTR8_Bewo <- full_join(Primary_HTR8, Bewo_All)
 Primary_HTR8_Bewo_JEG3 <- full_join(Primary_HTR8_Bewo, JEG3_All)
 Primary_HTR8_Bewo_JEG3_JAR <-full_join(Primary_HTR8_Bewo_JEG3, JAR_All)
 Primary_HTR8_Bewo_JEG3_JAR_Explant <- full_join(Primary_HTR8_Bewo_JEG3_JAR, Explant_All)
-FullMerge <- full_join(Primary_HTR8_Bewo_JEG3_JAR_Explant, CANDLE_GAPPS)
+Primary_HTR8_Bewo_JEG3_JAR_Explant_TSC <- full_join(Primary_HTR8_Bewo_JEG3_JAR_Explant, TSC_All)
+FullMerge <- full_join(Primary_HTR8_Bewo_JEG3_JAR_Explant_TSC, CANDLE_GAPPS)
 
 ```
 

@@ -1,7 +1,7 @@
 ---
-title: "Trophoblast Cell Type Merge"
+title: "DataMerge- Trophoblast Cell Type Models"
 author: "Samantha Lapehn"
-date: "2023-11-17"
+date: "Sept 2024 Update"
 output: html_document
 ---
 
@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Trophoblast Cell Type Merge
+## FACS Merge Sept 2024
 
-This code is merging the unfiltered data from the Campbell et al. FAC sorted placental tissue for CTBs and EVTs with villous digest STBs and the cell line data. This merge will not include CANDLE/GAPPS placental tissue or villous explants since these are tissue based models rather than cell based models.
+This code is merging the unfiltered data from the Campbell et al. 2023 (Communications Biology) FAC Sorted/Vilous Digest placental tissue for CTBs, STBs, and EVTs with the cell line data. This merge will not include CANDLE/GAPPS placental tissue or villous explants since these are tissue based models rather than cell based models.
 
 # Load Packages
 ```{r load package}
@@ -20,12 +20,13 @@ library(tidyverse)
 
 #Load Data
 Data contains: 
-FACS STBs or CTBs or EVTs Samples
+FACS/Villous Digest STBs or CTBs or EVTs Samples
 3 primary trophoblast 
 5 HTR-8/SVneo
 9 BeWo (8 w/unfused, 3 w/fused some with both)
 5 JEG-3
 4 JAR
+4 TSC
 
 ```{r load Data}
 #Primary Trophoblast
@@ -122,6 +123,20 @@ CTBs <- GSE182381_CTBs_Annotated
 
 load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE182381_EVTs_Annotated_061523.RData")
 EVTs <- GSE182381_EVTs_Annotated
+
+
+#Human TSCs
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE208538_TSC_Controls_090924.RData")
+TSC_1 <- GSE208538_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE209976_TSC_Controls_090924.RData")
+TSC_2 <- GSE209976_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE196259_TSC_Controls_090924.RData")
+TSC_3 <- GSE196259_Controls_Annotated
+
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Unfiltered Data/GSE188738_TSC_Controls_090924.RData")
+TSC_4 <- GSE188738_Controls_Annotated
 ```
 
 ### Remove unneeded annotation
@@ -302,6 +317,30 @@ EVTs <- EVTs %>%
   dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
   dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
 
+TSC_1 <- TSC_1 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_2 <- TSC_2 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_3 <- TSC_3 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
+TSC_4 <- TSC_4 %>%
+  dplyr::filter(gene_biotype=="protein_coding") %>%
+  dplyr::select(-description, -hgnc_id, -entrezgene_id, -chromosome_name, -gene_biotype) %>%
+  dplyr::distinct(ensembl_gene_id, .keep_all = TRUE) %>%
+  dplyr::distinct(hgnc_symbol, .keep_all=TRUE)
+
 ```
 
 ### Merge data by CellType
@@ -337,6 +376,11 @@ JAR_1_2<- full_join(JAR_1, JAR_2)
 JAR_1_2_3 <- full_join(JAR_1_2, JAR_3)
 JAR_All <- full_join(JAR_1_2_3, JAR_4)
 
+#TSC
+TSC_1_2<- full_join(TSC_1, TSC_2)
+TSC_1_2_3 <- full_join(TSC_1_2, TSC_3)
+TSC_All <- full_join(TSC_1_2_3, TSC_4)
+
 ```
 
 ### Merge all cell types into one
@@ -345,14 +389,15 @@ Primary_HTR8 <- full_join(PrimaryTrophoblast_All, HTR8_All)
 Primary_HTR8_Bewo <- full_join(Primary_HTR8, Bewo_All)
 Primary_HTR8_Bewo_JEG3 <- full_join(Primary_HTR8_Bewo, JEG3_All)
 Primary_HTR8_Bewo_JEG3_JAR <-full_join(Primary_HTR8_Bewo_JEG3, JAR_All)
-FullMerge_STB<- full_join(Primary_HTR8_Bewo_JEG3_JAR, STBs)
-FullMerge_CTB<- full_join(Primary_HTR8_Bewo_JEG3_JAR, CTBs)
-FullMerge_EVT<- full_join(Primary_HTR8_Bewo_JEG3_JAR, EVTs)
+Primary_HTR8_Bewo_JEG3_JAR_TSC <- full_join(Primary_HTR8_Bewo_JEG3_JAR, TSC_All)
+FullMerge_STB<- full_join(Primary_HTR8_Bewo_JEG3_JAR_TSC, STBs)
+FullMerge_CTB<- full_join(Primary_HTR8_Bewo_JEG3_JAR_TSC, CTBs)
+FullMerge_EVT<- full_join(Primary_HTR8_Bewo_JEG3_JAR_TSC, EVTs)
 ```
 ### Clean data names for STB
 Need to make sure the Metadata is in the same order as the samples in the FullMerge dataset
 ```{r clean STB}
-Sample_Metadata_STB <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_STBs_Nov2023.csv")
+Sample_Metadata_STB <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_STBs_Sept2024Revision.csv")
 
 FullMerge_NoAnnot_STB <- FullMerge_STB %>%
   dplyr::select(-ensembl_gene_id, -hgnc_symbol)
@@ -388,7 +433,7 @@ FullMerge_NewIDs_Annotated_STB <- cbind(FullMerge_AnnotationInfo_STB, FullMerge_
 ### Clean data names for CTB
 Need to make sure the Metadata is in the same order as the samples in the FullMerge dataset
 ```{r clean CTB}
-Sample_Metadata_CTB <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_CTBs_Nov2023.csv")
+Sample_Metadata_CTB <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_CTBs_Sept2024Revision.csv")
 
 FullMerge_NoAnnot_CTB <- FullMerge_CTB %>%
   dplyr::select(-ensembl_gene_id, -hgnc_symbol)
@@ -424,7 +469,7 @@ FullMerge_NewIDs_Annotated_CTB <- cbind(FullMerge_AnnotationInfo_CTB, FullMerge_
 ### Clean data names for EVT
 Need to make sure the Metadata is in the same order as the samples in the FullMerge dataset
 ```{r clean EVT}
-Sample_Metadata_EVT <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_EVTs_Nov2023.csv")
+Sample_Metadata_EVT <- read.csv("/active/paquette_a/slapehn/Placenta_CellLine_Comparison/SampleID_Key_FACS_EVTs_Sept2024Revision.csv")
 
 FullMerge_NoAnnot_EVT <- FullMerge_EVT %>%
   dplyr::select(-ensembl_gene_id, -hgnc_symbol)
@@ -460,9 +505,9 @@ FullMerge_NewIDs_Annotated_EVT <- cbind(FullMerge_AnnotationInfo_EVT, FullMerge_
 
 ## Save Merged/Cleaned Data
 ```{r save}
-#save(FullMerge_NewIDs_Annotated_STB, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_STB_111723.Rdata")
+#save(FullMerge_NewIDs_Annotated_STB, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_STB_091324.Rdata")
 
-#save(FullMerge_NewIDs_Annotated_CTB, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_CTB_111723.Rdata")
+#save(FullMerge_NewIDs_Annotated_CTB, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_CTB_091324.Rdata")
 
-#save(FullMerge_NewIDs_Annotated_EVT, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_EVT_111723.Rdata")
+#save(FullMerge_NewIDs_Annotated_EVT, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_FACS_EVT_091324.Rdata")
 ```

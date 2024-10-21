@@ -1,7 +1,7 @@
 ---
-title: "Low Expression Gene Filtering (average logcpm<0)"
+title: "Low Expression (Average logcpm<0) Gene Removal"
 author: "Samantha Lapehn"
-date: "2023-11-17"
+date: "Sept 2024 Update"
 output: html_document
 ---
 
@@ -9,8 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Low Expression Gene Filtering
-Performing  filtering to remove non-protein coding genes and low expressing genes (average logcpm<0)
+## September 2024 Filtering
+Performing  filtering to remove non-protein coding genes and low expressing genes. This updated code adds the trophoblast stem cells based on reviews from Placenta submission. 
 
 ### Load Packages
 ```{r load packages}
@@ -21,7 +21,7 @@ library(edgeR)
 ### Load Data
 ```{r load data}
 #Full Merged Data
-load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_111723.Rdata")
+load(file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Unfiltered Data/FullMerge_Unfiltered_090924.Rdata")
 ```
 
 ### Remove duplicates
@@ -82,12 +82,12 @@ abline(v =0, col = "red", lty = 2)
 Filtered_Counts_DF <- data.frame(Expr_Matrix_Filtered$counts)
 Filtered_Counts_DF$hgnc_symbol <- rownames(Filtered_Counts_DF)
 FilteredCounts_DF_Annotated <- inner_join(Annotation, Filtered_Counts_DF, by=("hgnc_symbol"))
-Filtered_Counts_DF <- Filtered_Counts_DF[,-1223]
+Filtered_Counts_DF <- Filtered_Counts_DF[,-1237]
 
 Filtered_logcpm_DF <- data.frame(Filtered_logcpm)
 Filtered_logcpm_DF$hgnc_symbol <- rownames(Filtered_logcpm_DF)
 Filtered_logcpm_DF_Annotated <- inner_join(Annotation, Filtered_logcpm_DF, by=("hgnc_symbol"))
-Filtered_logcpm_DF <- Filtered_logcpm_DF[,-1223]
+Filtered_logcpm_DF <- Filtered_logcpm_DF[,-1237]
 
 Removed_Genes_DF<-data.frame(Removed_Genes$counts)
 Removed_Genes_DF$hgnc_symbol <- rownames(Removed_Genes_DF)
@@ -97,14 +97,14 @@ Removed_Genes_logcpm_DF<-data.frame(Removed_Genes_logcpm)
 Removed_Genes_logcpm_DF$hgnc_symbol <- rownames(Removed_Genes_logcpm_DF)
 Removed_Genes_DF_logcpm_Annotated <- inner_join(Annotation, Removed_Genes_logcpm_DF, by=("hgnc_symbol"))
 
-#save(FilteredCounts_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredwithAnnotation_111723.RData")
-#save(Filtered_Counts_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_111723.RData")
-#save(Filtered_logcpm_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/Filtered_logcpm_withAnnotation_111723.RData")
-#save(Filtered_logcpm_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/Filtered_logcpm_112723.RData")
-#save(Removed_Genes_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/RemovedGenes_counts_111723.RData")
-#save(Removed_Genes_logcpm_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/RemovedGenes_logcpm_111723.RData")
+#save(FilteredCounts_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredwithAnnotation_091124.RData")
+#save(Filtered_Counts_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/FilteredCounts_091124.RData")
+#save(Filtered_logcpm_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/Filtered_logcpm_withAnnotation_091124.RData")
+#save(Filtered_logcpm_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/Filtered_logcpm_091124.RData")
+#save(Removed_Genes_DF_Annotated, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/RemovedGenes_counts_091124.RData")
+#save(Removed_Genes_logcpm_DF, file="/active/paquette_a/slapehn/Placenta_CellLine_Comparison/Data/Merged Filtered Data/RemovedGenes_logcpm_091124.RData")
 
-write.csv(Removed_Genes_logcpm_DF, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/RemovedGenes_logcpm_111723.csv")
+#write.csv(Removed_Genes_logcpm_DF, "/active/paquette_a/slapehn/Placenta_CellLine_Comparison/ForShinyApp/RemovedGenes_logcpm_091124.csv")
 ```
 
 
